@@ -123,12 +123,9 @@ public class CreatureAI_Kurinnax : WS_Creatures_AI.BossAI
     public override void OnHealthChange(int Percent)
     {
         base.OnHealthChange(Percent);
-        if (phase == 1)
+        if (phase == 1 && Percent <= 20)
         {
-            if (Percent <= 20)
-            {
-                aiCreature.CastSpellOnSelf(Spell_Frenzy);
-            }
+            aiCreature.CastSpellOnSelf(Spell_Frenzy);
         }
     }
 }

@@ -38,20 +38,6 @@ public class SQL : IDisposable
 
     public delegate void SQLMessageEventHandler(EMessages MessageID, string OutBuf);
 
-    // <Description("Class info version/last date updated.")> _
-    // Public ReadOnly Property Class_Version_Info() As String
-    // Get
-    // Return "Version: " + VInfo + ", Updated at: " + rvDate
-    // End Get
-    // End Property
-    // #End Region
-
-    private string v_SQLHost = "localhost";
-    private string v_SQLPort = "3306";
-    private string v_SQLUser = "";
-    private string v_SQLPass = "";
-    private string v_SQLDBName = "";
-
     public enum DB_Type
     {
         MySQL = 0
@@ -64,79 +50,23 @@ public class SQL : IDisposable
         FatalError = 2
     }
 
-    private DB_Type v_SQLType;
-
     [Description("SQL Server selection.")]
-    public DB_Type SQLTypeServer
-    {
-        get
-        {
-            var SQLTypeServerRet = v_SQLType;
-            return SQLTypeServerRet;
-        }
-
-        set => v_SQLType = value;
-    }
+    public DB_Type SQLTypeServer { get; set; }
 
     [Description("SQL Host name.")]
-    public string SQLHost
-    {
-        get
-        {
-            var SQLHostRet = v_SQLHost;
-            return SQLHostRet;
-        }
-
-        set => v_SQLHost = value;
-    }
+    public string SQLHost { get; set; } = "localhost";
 
     [Description("SQL Host port.")]
-    public string SQLPort
-    {
-        get
-        {
-            var SQLPortRet = v_SQLPort;
-            return SQLPortRet;
-        }
-
-        set => v_SQLPort = value;
-    }
+    public string SQLPort { get; set; } = "3306";
 
     [Description("SQL User name.")]
-    public string SQLUser
-    {
-        get
-        {
-            var SQLUserRet = v_SQLUser;
-            return SQLUserRet;
-        }
-
-        set => v_SQLUser = value;
-    }
+    public string SQLUser { get; set; } = "";
 
     [Description("SQL Password.")]
-    public string SQLPass
-    {
-        get
-        {
-            var SQLPassRet = v_SQLPass;
-            return SQLPassRet;
-        }
-
-        set => v_SQLPass = value;
-    }
+    public string SQLPass { get; set; } = "";
 
     [Description("SQL Database name.")]
-    public string SQLDBName
-    {
-        get
-        {
-            var SQLDBNameRet = v_SQLDBName;
-            return SQLDBNameRet;
-        }
-
-        set => v_SQLDBName = value;
-    }
+    public string SQLDBName { get; set; } = "";
 
     [Description("Start up the SQL connection.")]
     public int Connect()
@@ -173,7 +103,7 @@ public class SQL : IDisposable
                 return (int)ReturnState.FatalError;
             }
 
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -198,7 +128,7 @@ public class SQL : IDisposable
     {
         try
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -235,7 +165,7 @@ public class SQL : IDisposable
         {
             // TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
             // TODO: set large fields to null.
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -300,7 +230,7 @@ public class SQL : IDisposable
 
     public int Query(string sqlquery, ref DataTable Result)
     {
-        switch (v_SQLType)
+        switch (SQLTypeServer)
         {
             case DB_Type.MySQL:
                 {
@@ -321,7 +251,7 @@ public class SQL : IDisposable
         var ExitCode = (int)ReturnState.Success;
         try
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -342,6 +272,12 @@ public class SQL : IDisposable
                     }
             }
         }
+        catch (TimeoutException e)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, "Timeout in IO operation" + e.Message);
+            Restart();
+            ExitCode = (int)ReturnState.MinorError;
+        }
         catch (MySqlException e)
         {
             SQLMessage?.Invoke(EMessages.ID_Error, "Error Reading From MySQL Database " + e.Message);
@@ -350,7 +286,7 @@ public class SQL : IDisposable
         }
         finally
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -365,7 +301,7 @@ public class SQL : IDisposable
 
     public void Insert(string sqlquery)
     {
-        switch (v_SQLType)
+        switch (SQLTypeServer)
         {
             case DB_Type.MySQL:
                 {
@@ -385,7 +321,7 @@ public class SQL : IDisposable
 
         try
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -406,7 +342,7 @@ public class SQL : IDisposable
         }
         finally
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -464,7 +400,7 @@ public class SQL : IDisposable
 
     public void Update(string sqlquery)
     {
-        switch (v_SQLType)
+        switch (SQLTypeServer)
         {
             case DB_Type.MySQL:
                 {
@@ -484,7 +420,7 @@ public class SQL : IDisposable
 
         try
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {
@@ -504,7 +440,7 @@ public class SQL : IDisposable
         }
         finally
         {
-            switch (v_SQLType)
+            switch (SQLTypeServer)
             {
                 case DB_Type.MySQL:
                     {

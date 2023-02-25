@@ -18,8 +18,8 @@
 
 using Mangos.Common.Enums.Global;
 using Mangos.World.Objects;
-using Microsoft.VisualBasic.CompilerServices;
 using System;
+using System.Collections.Generic;
 
 namespace Mangos.World.Loots;
 
@@ -27,35 +27,18 @@ public partial class WS_Loot
 {
     public class LootItem : IDisposable
     {
-        public int ItemID;
-
-        public byte ItemCount;
-
         private bool _disposedValue;
 
-        public int ItemModel
-        {
-            get
-            {
-                if (!WorldServiceLocator.WorldServer.ITEMDatabase.ContainsKey(ItemID))
-                {
-                    try
-                    {
-                        WorldServiceLocator.WorldServer.ITEMDatabase.Remove(ItemID);
-                        WS_Items.ItemInfo tmpItem = new(ItemID);
-                        WorldServiceLocator.WorldServer.ITEMDatabase.Add(ItemID, tmpItem);
-                    }
-                    catch (Exception ex)
-                    {
-                        WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, "Error on ItemModel [Item ID {0} : Exception {1}]", ItemID, ex);
-                    }
-                }
-                return WorldServiceLocator.WorldServer.ITEMDatabase[ItemID].Model;
-            }
-        }
+        public byte ItemCount;
+        public int ItemID;
 
         public LootItem(ref LootStoreItem Item)
         {
+            if(Item is null)
+            {
+                throw new ArgumentNullException(nameof(Item));
+            }
+
             ItemID = 0;
             ItemCount = 0;
             ItemID = Item.ItemID;
@@ -65,9 +48,15 @@ public partial class WS_Loot
             }
         }
 
+        void IDisposable.Dispose()
+        {
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
+        }
+
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if(!_disposedValue)
             {
             }
             _disposedValue = true;
@@ -79,10 +68,34 @@ public partial class WS_Loot
             GC.SuppressFinalize(this);
         }
 
-        void IDisposable.Dispose()
+        public int ItemModel
         {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
+            get
+            {
+                if(!WorldServiceLocator.WorldServer.ITEMDatabase.ContainsKey(ItemID))
+                {
+                    try
+                    {
+                        WorldServiceLocator.WorldServer.ITEMDatabase.Remove(ItemID);
+                        WS_Items.ItemInfo tmpItem = new(ItemID);
+                        if (tmpItem == null)
+                        {
+                            return 0;
+                        }
+
+                        WorldServiceLocator.WorldServer.ITEMDatabase.TryAdd(ItemID, tmpItem);
+                    } catch(Exception ex)
+                    {
+                        WorldServiceLocator.WorldServer.Log
+                            .WriteLine(
+                                LogType.DEBUG,
+                                "Error on ItemModel [Item ID {0} : Exception {1}]",
+                                ItemID,
+                                ex);
+                    }
+                }
+                return WorldServiceLocator.WorldServer.ITEMDatabase[ItemID].Model;
+            }
         }
     }
 }

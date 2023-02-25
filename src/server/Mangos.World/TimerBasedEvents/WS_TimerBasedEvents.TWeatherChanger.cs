@@ -20,19 +20,17 @@ using Mangos.Common.Enums.Global;
 using System;
 using System.Threading;
 
-namespace Mangos.World.Server;
+namespace Mangos.World.TimerBasedEvents;
 
 public partial class WS_TimerBasedEvents
 {
     public class TWeatherChanger : IDisposable
     {
-        public Timer WeatherTimer;
-
+        private bool _disposedValue;
         private bool WeatherWorking;
 
         public int UPDATE_TIMER;
-
-        private bool _disposedValue;
+        public Timer WeatherTimer;
 
         public TWeatherChanger()
         {
@@ -42,15 +40,27 @@ public partial class WS_TimerBasedEvents
             WeatherTimer = new Timer(Update, null, 10000, UPDATE_TIMER);
         }
 
+        void IDisposable.Dispose()
+        {
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
+        }
+
         private void Update(object state)
         {
-            if (WeatherWorking)
+            if(state is not null)
             {
-                WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "Update: Weather changer skipping update");
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            if(WeatherWorking)
+            {
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(LogType.WARNING, "Update: Weather changer skipping update");
                 return;
             }
             WeatherWorking = true;
-            foreach (var weatherZone in WorldServiceLocator.WSWeather.WeatherZones)
+            foreach(var weatherZone in WorldServiceLocator.WSWeather.WeatherZones)
             {
                 weatherZone.Value.Update();
             }
@@ -59,7 +69,7 @@ public partial class WS_TimerBasedEvents
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if(!_disposedValue)
             {
                 WeatherTimer.Dispose();
                 WeatherTimer = null;
@@ -71,12 +81,6 @@ public partial class WS_TimerBasedEvents
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
-        }
-
-        void IDisposable.Dispose()
-        {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
         }
     }
 }

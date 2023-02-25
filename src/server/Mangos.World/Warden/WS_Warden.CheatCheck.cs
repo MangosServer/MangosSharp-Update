@@ -18,6 +18,7 @@
 
 using Mangos.Common.Enums.Warden;
 using Microsoft.VisualBasic.CompilerServices;
+using System;
 using System.IO;
 
 namespace Mangos.World.Warden;
@@ -26,26 +27,25 @@ public partial class WS_Warden
 {
     public class CheatCheck
     {
-        public CheckTypes Type;
-
-        public string Str;
-
-        public string Str2;
-
         public int Addr;
 
         public byte[] Hash;
 
+        public byte Length;
+
         public int Seed;
 
-        public byte Length;
+        public string Str;
+
+        public string Str2;
+        public CheckTypes Type;
 
         public CheatCheck(CheckTypes Type_)
         {
-            Str = "";
-            Str2 = "";
+            Str = string.Empty;
+            Str2 = string.Empty;
             Addr = 0;
-            Hash = System.Array.Empty<byte>();
+            Hash = Array.Empty<byte>();
             Seed = 0;
             Length = 0;
             Type = Type_;
@@ -58,14 +58,13 @@ public partial class WS_Warden
             bw.Write(XorCheck);
             checked
             {
-                switch (Type)
+                switch(Type)
                 {
                     case CheckTypes.MEM_CHECK:
-                        if (Operators.CompareString(Str, "", TextCompare: false) == 0)
+                        if(Operators.CompareString(Str, string.Empty, TextCompare: false) == 0)
                         {
                             bw.Write((byte)0);
-                        }
-                        else
+                        } else
                         {
                             bw.Write(index);
                             index++;

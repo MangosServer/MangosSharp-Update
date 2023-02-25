@@ -28,31 +28,112 @@ namespace Mangos.World.Quests;
 
 public class WS_QuestInfo : IDisposable
 {
+    private bool _disposedValue;
+
+    public int CompleteEmote;
+
+    public int CompleteScript;
+
+    public int[] DetailsEmote;
     public int ID;
 
-    public List<int> PreQuests;
+    public int IncompleteEmote;
+
+    public short Level_Normal;
+
+    public byte Level_Start;
+
+    public byte Method;
 
     public int NextQuest;
 
     public int NextQuestInChain;
 
-    public byte Method;
+    public int ObjectiveRepFaction;
 
-    public int Type;
+    public int ObjectiveRepStanding;
 
-    public int ZoneOrSort;
+    public int[] ObjectivesCastSpell;
+
+    public int ObjectivesDeliver;
+
+    public int ObjectivesDeliver_Count;
+
+    public int[] ObjectivesItem;
+
+    public int[] ObjectivesItem_Count;
+
+    public int[] ObjectivesKill;
+
+    public int[] ObjectivesKill_Count;
+
+    public string[] ObjectivesText;
+
+    public int[] ObjectivesTrigger;
+
+    public int[] OfferRewardEmote;
+
+    public int PointMapID;
+
+    public int PointOpt;
+
+    public float PointX;
+
+    public float PointY;
+
+    public List<int> PreQuests;
 
     public int QuestFlags;
 
+    public int RequiredClass;
+
+    public int RequiredMaxReputation;
+
+    public int RequiredMaxReputation_Faction;
+
+    public int RequiredMinReputation;
+
+    public int RequiredMinReputation_Faction;
+
+    public int RequiredRace;
+
+    public int RequiredTradeSkill;
+
+    public int RequiredTradeSkillValue;
+
+    public int RewardGold;
+
+    public int RewardHonor;
+
+    public int[] RewardItems;
+
+    public int[] RewardItems_Count;
+
+    public int[] RewardRepFaction;
+
+    public int[] RewardRepValue;
+
+    public int RewardSpell;
+
+    public int RewardSpellCast;
+
+    public int[] RewardStaticItems;
+
+    public int[] RewardStaticItems_Count;
+
+    public int RewMailDelaySecs;
+
+    public int RewMailTemplateId;
+
+    public int RewMoneyMaxLevel;
+
+    public int SourceSpell;
+
     public int SpecialFlags;
 
-    public byte Level_Start;
+    public int StartScript;
 
-    public short Level_Normal;
-
-    public string Title;
-
-    public string TextObjectives;
+    public string TextComplete;
 
     public string TextDescription;
 
@@ -60,114 +141,32 @@ public class WS_QuestInfo : IDisposable
 
     public string TextIncomplete;
 
-    public string TextComplete;
-
-    public int RequiredRace;
-
-    public int RequiredClass;
-
-    public int RequiredTradeSkill;
-
-    public int RequiredTradeSkillValue;
-
-    public int RequiredMinReputation;
-
-    public int RequiredMinReputation_Faction;
-
-    public int RequiredMaxReputation;
-
-    public int RequiredMaxReputation_Faction;
-
-    public int RewardHonor;
-
-    public int RewardGold;
-
-    public int RewMoneyMaxLevel;
-
-    public int RewardSpell;
-
-    public int RewardSpellCast;
-
-    public int[] RewardItems;
-
-    public int[] RewardItems_Count;
-
-    public int[] RewardStaticItems;
-
-    public int[] RewardStaticItems_Count;
-
-    public int[] RewardRepFaction;
-
-    public int[] RewardRepValue;
-
-    public int RewMailTemplateId;
-
-    public int RewMailDelaySecs;
-
-    public int ObjectiveRepFaction;
-
-    public int ObjectiveRepStanding;
-
-    public int[] ObjectivesTrigger;
-
-    public int[] ObjectivesCastSpell;
-
-    public int[] ObjectivesKill;
-
-    public int[] ObjectivesKill_Count;
-
-    public int[] ObjectivesItem;
-
-    public int[] ObjectivesItem_Count;
-
-    public int ObjectivesDeliver;
-
-    public int ObjectivesDeliver_Count;
-
-    public string[] ObjectivesText;
+    public string TextObjectives;
 
     public int TimeLimit;
 
-    public int SourceSpell;
+    public string Title;
 
-    public int PointMapID;
+    public int Type;
 
-    public float PointX;
-
-    public float PointY;
-
-    public int PointOpt;
-
-    public int[] DetailsEmote;
-
-    public int IncompleteEmote;
-
-    public int CompleteEmote;
-
-    public int[] OfferRewardEmote;
-
-    public int StartScript;
-
-    public int CompleteScript;
-
-    private bool _disposedValue;
+    public int ZoneOrSort;
 
     public WS_QuestInfo(int QuestID)
     {
-        RewardItems = new int[6];
-        RewardItems_Count = new int[6];
-        RewardStaticItems = new int[5];
-        RewardStaticItems_Count = new int[5];
-        RewardRepFaction = new int[5];
-        RewardRepValue = new int[5];
-        ObjectivesTrigger = new int[4];
-        ObjectivesCastSpell = new int[4];
-        ObjectivesKill = new int[4];
-        ObjectivesKill_Count = new int[4];
-        ObjectivesItem = new int[4];
-        ObjectivesItem_Count = new int[4];
-        DetailsEmote = new int[4];
-        OfferRewardEmote = new int[4];
+        RewardItems = (new int[6]);
+        RewardItems_Count = (new int[6]);
+        RewardStaticItems = (new int[5]);
+        RewardStaticItems_Count = (new int[5]);
+        RewardRepFaction = (new int[5]);
+        RewardRepValue = (new int[5]);
+        ObjectivesTrigger = (new int[4]);
+        ObjectivesCastSpell = (new int[4]);
+        ObjectivesKill = (new int[4]);
+        ObjectivesKill_Count = (new int[4]);
+        ObjectivesItem = (new int[4]);
+        ObjectivesItem_Count = (new int[4]);
+        DetailsEmote = (new int[4]);
+        OfferRewardEmote = (new int[4]);
         NextQuest = 0;
         NextQuestInChain = 0;
         Method = 0;
@@ -175,24 +174,18 @@ public class WS_QuestInfo : IDisposable
         SpecialFlags = 0;
         Level_Start = 0;
         Level_Normal = 0;
-        Title = "";
-        TextObjectives = "";
-        TextDescription = "";
-        TextEnd = "";
-        TextIncomplete = "";
-        TextComplete = "";
+        Title = string.Empty;
+        TextObjectives = string.Empty;
+        TextDescription = string.Empty;
+        TextEnd = string.Empty;
+        TextIncomplete = string.Empty;
+        TextComplete = string.Empty;
         RewardHonor = 0;
         RewardGold = 0;
         RewMoneyMaxLevel = 0;
         RewardSpell = 0;
         RewardSpellCast = 0;
-        ObjectivesText = new string[4]
-        {
-                "",
-                "",
-                "",
-                ""
-        };
+        ObjectivesText = (new string[4] { string.Empty, string.Empty, string.Empty, string.Empty });
         TimeLimit = 0;
         SourceSpell = 0;
         PointMapID = 0;
@@ -206,12 +199,13 @@ public class WS_QuestInfo : IDisposable
         ID = QuestID;
         PreQuests = new List<int>();
         DataTable MySQLQuery = new();
-        WorldServiceLocator.WorldServer.WorldDatabase.Query($"SELECT * FROM quests WHERE entry = {QuestID};", ref MySQLQuery);
-        if (MySQLQuery.Rows.Count == 0)
+        WorldServiceLocator.WorldServer.WorldDatabase
+            .Query($"SELECT * FROM quests WHERE entry = {QuestID};", ref MySQLQuery);
+        if(MySQLQuery.Rows.Count == 0)
         {
-            throw new ApplicationException("Quest " + Conversions.ToString(QuestID) + " not found in database.");
+            throw new ApplicationException($"Quest {Convert.ToString(QuestID)} not found in database.");
         }
-        if (Operators.ConditionalCompareObjectGreater(MySQLQuery.Rows[0]["PrevQuestId"], 0, TextCompare: false))
+        if(Operators.ConditionalCompareObjectGreater(MySQLQuery.Rows[0]["PrevQuestId"], 0, TextCompare: false))
         {
             PreQuests.Add(MySQLQuery.Rows[0].As<int>("PrevQuestId"));
         }
@@ -225,11 +219,10 @@ public class WS_QuestInfo : IDisposable
         QuestFlags = MySQLQuery.Rows[0].As<int>("QuestFlags");
         SpecialFlags = MySQLQuery.Rows[0].As<int>("SpecialFlags");
         var SkillOrClass = MySQLQuery.Rows[0].As<int>("SkillOrClass");
-        if (SkillOrClass < 0)
+        if(SkillOrClass < 0)
         {
             RequiredClass = checked(-SkillOrClass);
-        }
-        else
+        } else
         {
             RequiredTradeSkill = SkillOrClass;
         }
@@ -241,27 +234,27 @@ public class WS_QuestInfo : IDisposable
         RequiredMinReputation = MySQLQuery.Rows[0].As<int>("RequiredMaxRepValue");
         ObjectiveRepFaction = MySQLQuery.Rows[0].As<int>("RepObjectiveFaction");
         ObjectiveRepStanding = MySQLQuery.Rows[0].As<int>("RepObjectiveValue");
-        if (MySQLQuery.Rows[0]["Title"] is not DBNull)
+        if(MySQLQuery.Rows[0]["Title"] is not DBNull)
         {
             Title = MySQLQuery.Rows[0].As<string>("Title");
         }
-        if (MySQLQuery.Rows[0]["Objectives"] is not DBNull)
+        if(MySQLQuery.Rows[0]["Objectives"] is not DBNull)
         {
             TextObjectives = MySQLQuery.Rows[0].As<string>("Objectives");
         }
-        if (MySQLQuery.Rows[0]["Details"] is not DBNull)
+        if(MySQLQuery.Rows[0]["Details"] is not DBNull)
         {
             TextDescription = MySQLQuery.Rows[0].As<string>("Details");
         }
-        if (MySQLQuery.Rows[0]["EndText"] is not DBNull)
+        if(MySQLQuery.Rows[0]["EndText"] is not DBNull)
         {
             TextEnd = MySQLQuery.Rows[0].As<string>("EndText");
         }
-        if (MySQLQuery.Rows[0]["RequestItemsText"] is not DBNull)
+        if(MySQLQuery.Rows[0]["RequestItemsText"] is not DBNull)
         {
             TextIncomplete = MySQLQuery.Rows[0].As<string>("RequestItemsText");
         }
-        if (MySQLQuery.Rows[0]["OfferRewardText"] is not DBNull)
+        if(MySQLQuery.Rows[0]["OfferRewardText"] is not DBNull)
         {
             TextComplete = MySQLQuery.Rows[0].As<string>("OfferRewardText");
         }
@@ -323,19 +316,19 @@ public class WS_QuestInfo : IDisposable
         ObjectivesItem_Count[3] = MySQLQuery.Rows[0].As<int>("ReqItemCount4");
         ObjectivesDeliver = MySQLQuery.Rows[0].As<int>("SrcItemId");
         ObjectivesDeliver_Count = MySQLQuery.Rows[0].As<int>("SrcItemCount");
-        if (MySQLQuery.Rows[0]["ObjectiveText1"] is not DBNull)
+        if(MySQLQuery.Rows[0]["ObjectiveText1"] is not DBNull)
         {
             ObjectivesText[0] = MySQLQuery.Rows[0].As<string>("ObjectiveText1");
         }
-        if (MySQLQuery.Rows[0]["ObjectiveText2"] is not DBNull)
+        if(MySQLQuery.Rows[0]["ObjectiveText2"] is not DBNull)
         {
             ObjectivesText[1] = MySQLQuery.Rows[0].As<string>("ObjectiveText2");
         }
-        if (MySQLQuery.Rows[0]["ObjectiveText3"] is not DBNull)
+        if(MySQLQuery.Rows[0]["ObjectiveText3"] is not DBNull)
         {
             ObjectivesText[2] = MySQLQuery.Rows[0].As<string>("ObjectiveText3");
         }
-        if (MySQLQuery.Rows[0]["ObjectiveText4"] is not DBNull)
+        if(MySQLQuery.Rows[0]["ObjectiveText4"] is not DBNull)
         {
             ObjectivesText[3] = MySQLQuery.Rows[0].As<string>("ObjectiveText4");
         }
@@ -360,21 +353,6 @@ public class WS_QuestInfo : IDisposable
         InitQuest();
     }
 
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposedValue)
-        {
-        }
-        _disposedValue = true;
-        GC.Collect();
-    }
-
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
     void IDisposable.Dispose()
     {
         //ILSpy generated this explicit interface implementation from .override directive in Dispose
@@ -383,121 +361,154 @@ public class WS_QuestInfo : IDisposable
 
     private void InitQuest()
     {
-        if (NextQuestInChain > 0)
+        if(NextQuestInChain > 0)
         {
-            if (!WorldServiceLocator.WorldServer.ALLQUESTS.IsValidQuest(NextQuestInChain))
+            if(!WorldServiceLocator.WorldServer.ALLQUESTS.IsValidQuest(NextQuestInChain))
             {
                 WS_QuestInfo tmpQuest2 = new(NextQuestInChain);
-                if (!tmpQuest2.PreQuests.Contains(ID))
+                if(!tmpQuest2.PreQuests.Contains(ID))
                 {
-                    WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", ID, NextQuestInChain);
+                    WorldServiceLocator.WorldServer.Log
+                        .WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", ID, NextQuestInChain);
                     tmpQuest2.PreQuests.Add(ID);
                 }
-            }
-            else if (!WorldServiceLocator.WorldServer.ALLQUESTS.DoesPreQuestExist(NextQuestInChain, ID))
+            } else if(!WorldServiceLocator.WorldServer.ALLQUESTS.DoesPreQuestExist(NextQuestInChain, ID))
             {
-                WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", NextQuestInChain, ID);
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", NextQuestInChain, ID);
                 WorldServiceLocator.WorldServer.ALLQUESTS.ReturnQuestInfoById(NextQuestInChain).PreQuests.Add(ID);
             }
         }
-        if (NextQuest == 0)
+        if(NextQuest == 0)
         {
             return;
         }
         var unsignedNextQuest = Math.Abs(NextQuest);
         var signedQuestID = (NextQuest < 0) ? checked(-ID) : ID;
-        if (!WorldServiceLocator.WorldServer.ALLQUESTS.IsValidQuest(unsignedNextQuest))
+        if(!WorldServiceLocator.WorldServer.ALLQUESTS.IsValidQuest(unsignedNextQuest))
         {
             WS_QuestInfo tmpQuest = new(unsignedNextQuest);
-            if (!tmpQuest.PreQuests.Contains(signedQuestID))
+            if(!tmpQuest.PreQuests.Contains(signedQuestID))
             {
-                WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", signedQuestID, unsignedNextQuest);
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(
+                        LogType.DEBUG,
+                        "Added prequest [{0}] to quest [{1}]",
+                        signedQuestID,
+                        unsignedNextQuest);
                 tmpQuest.PreQuests.Add(signedQuestID);
             }
-        }
-        else if (!WorldServiceLocator.WorldServer.ALLQUESTS.DoesPreQuestExist(unsignedNextQuest, signedQuestID))
+        } else if(!WorldServiceLocator.WorldServer.ALLQUESTS.DoesPreQuestExist(unsignedNextQuest, signedQuestID))
         {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", signedQuestID, unsignedNextQuest);
-            WorldServiceLocator.WorldServer.ALLQUESTS.ReturnQuestInfoById(unsignedNextQuest).PreQuests.Add(signedQuestID);
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(LogType.DEBUG, "Added prequest [{0}] to quest [{1}]", signedQuestID, unsignedNextQuest);
+            WorldServiceLocator.WorldServer.ALLQUESTS.ReturnQuestInfoById(unsignedNextQuest).PreQuests
+                .Add(signedQuestID);
         }
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if(!_disposedValue)
+        {
+        }
+        _disposedValue = true;
+        GC.Collect();
     }
 
     public bool CanSeeQuest(ref WS_PlayerData.CharacterObject objCharacter)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
         var retValue = true;
         checked
         {
-            if (objCharacter.Level + 6 < Level_Start)
+            if((objCharacter.Level + 6) < Level_Start)
             {
                 retValue = false;
             }
         }
-        if (RequiredClass > 0 && RequiredClass != (int)objCharacter.Classe)
+        if((RequiredClass > 0) && (RequiredClass != ((int)objCharacter.Class)))
         {
             retValue = false;
         }
-        if (ZoneOrSort < 0)
+        if(ZoneOrSort < 0)
         {
             WS_Quests tmpQuest = new();
             var reqSort = tmpQuest.ClassByQuestSort(checked(-ZoneOrSort));
-            if (reqSort > 0 && reqSort != (uint)objCharacter.Classe)
+            if((reqSort > 0) && (reqSort != ((uint)objCharacter.Class)))
             {
                 retValue = false;
             }
         }
-        if (RequiredRace != 0 && (RequiredRace & objCharacter.RaceMask) == 0)
+        if((RequiredRace != 0) && ((RequiredRace & objCharacter.RaceMask) == 0))
         {
             retValue = false;
         }
-        if (RequiredTradeSkill > 0)
+        if(RequiredTradeSkill > 0)
         {
-            if (!objCharacter.Skills.ContainsKey(RequiredTradeSkill))
+            if(!objCharacter.Skills.ContainsKey(RequiredTradeSkill))
             {
                 retValue = false;
             }
-            if (objCharacter.Skills[RequiredTradeSkill].Current < RequiredTradeSkillValue)
+            if(objCharacter.Skills[RequiredTradeSkill].Current < RequiredTradeSkillValue)
             {
                 retValue = false;
             }
         }
-        if (RequiredMinReputation_Faction > 0 && objCharacter.GetReputationValue(RequiredMinReputation_Faction) < RequiredMinReputation)
+        if((RequiredMinReputation_Faction > 0) &&
+            (objCharacter.GetReputationValue(RequiredMinReputation_Faction) < RequiredMinReputation))
         {
             retValue = false;
         }
-        if (RequiredMaxReputation_Faction > 0 && objCharacter.GetReputationValue(RequiredMaxReputation_Faction) >= RequiredMaxReputation)
+        if((RequiredMaxReputation_Faction > 0) &&
+            (objCharacter.GetReputationValue(RequiredMaxReputation_Faction) >= RequiredMaxReputation))
         {
             retValue = false;
         }
-        if (PreQuests.Count > 0)
+        if(PreQuests.Count > 0)
         {
-            foreach (var QuestID in PreQuests)
+            foreach(var QuestID in PreQuests)
             {
-                if (QuestID > 0)
+                if(QuestID > 0)
                 {
-                    if (!objCharacter.QuestsCompleted.Contains(QuestID))
+                    if(!objCharacter.QuestsCompleted.Contains(QuestID))
                     {
                         retValue = false;
                     }
-                }
-                else if (QuestID < 0 && objCharacter.QuestsCompleted.Contains(QuestID))
+                } else if((QuestID < 0) && objCharacter.QuestsCompleted.Contains(QuestID))
                 {
                     retValue = false;
                 }
             }
         }
-        if (objCharacter.QuestsCompleted.Contains(ID))
+        if(objCharacter.QuestsCompleted.Contains(ID))
         {
             retValue = false;
         }
-        if (objCharacter.IsQuestInProgress(ID))
+        if(objCharacter.IsQuestInProgress(ID))
         {
             retValue = false;
         }
         return retValue;
     }
 
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
     public bool SatisfyQuestLevel(ref WS_PlayerData.CharacterObject objCharacter)
     {
-        return objCharacter.Level >= (uint)Level_Start;
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
+        return objCharacter.Level >= ((uint)Level_Start);
     }
 }

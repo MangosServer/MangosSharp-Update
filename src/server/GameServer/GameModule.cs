@@ -27,17 +27,19 @@ namespace GameServer;
 
 internal sealed class GameModule : Module
 {
+    private void RegisterHandlers(ContainerBuilder builder)
+    {
+        builder.RegisterType<CMSG_PING_Handler>().InstancePerLifetimeScope();
+        builder.RegisterType<HandlerDispatcher<CMSG_PING, CMSG_PING_Handler>>()
+            .As<IHandlerDispatcher>()
+            .InstancePerLifetimeScope();
+    }
+
     protected override void Load(ContainerBuilder builder)
     {
         builder.RegisterType<GameTcpConnection>().As<ITcpConnection>().InstancePerLifetimeScope();
         builder.RegisterType<GameState>().As<IGameState>().InstancePerLifetimeScope();
 
         RegisterHandlers(builder);
-    }
-
-    private void RegisterHandlers(ContainerBuilder builder)
-    {
-        builder.RegisterType<CMSG_PING_Handler>().InstancePerLifetimeScope();
-        builder.RegisterType<HandlerDispatcher<CMSG_PING, CMSG_PING_Handler>>().As<IHandlerDispatcher>().InstancePerLifetimeScope();
     }
 }

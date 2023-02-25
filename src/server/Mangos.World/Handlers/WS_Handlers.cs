@@ -18,7 +18,6 @@
 
 using Mangos.Common.Enums.Global;
 using Mangos.Common.Globals;
-using Mangos.World.Globals;
 using Mangos.World.Network;
 using System;
 
@@ -189,7 +188,7 @@ public class WS_Handlers
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.MSG_PETITION_RENAME] = WorldServiceLocator.WSGuilds.On_MSG_PETITION_RENAME;
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.MSG_PETITION_DECLINE] = WorldServiceLocator.WSGuilds.On_MSG_PETITION_DECLINE;
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_BATTLEMASTER_HELLO] = WorldServiceLocator.WSHandlersBattleground.On_CMSG_BATTLEMASTER_HELLO;
-        WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_BATTLEFIELD_LIST] = WorldServiceLocator.WSHandlersBattleground.On_CMSG_BATTLEMASTER_HELLO;
+        WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_BATTLEFIELD_LIST] = WorldServiceLocator.WSHandlersBattleground.On_CMSG_BATTLEFIELD_LIST;
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_DUEL_CANCELLED] = WorldServiceLocator.WSSpells.On_CMSG_DUEL_CANCELLED;
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_DUEL_ACCEPTED] = WorldServiceLocator.WSSpells.On_CMSG_DUEL_ACCEPTED;
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_RESURRECT_RESPONSE] = WorldServiceLocator.WSSpells.On_CMSG_RESURRECT_RESPONSE;
@@ -210,17 +209,27 @@ public class WS_Handlers
         WorldServiceLocator.WorldServer.PacketHandlers[Opcodes.CMSG_PET_UNLEARN] = WorldServiceLocator.WSPets.On_CMSG_PET_UNLEARN;
     }
 
-    public void OnUnhandledPacket(ref Packets.PacketClass packet, ref WS_Network.ClientClass client)
+    public void OnUnhandledPacket(ref Packets.Packets.PacketClass packet, ref WS_Network.ClientClass client)
     {
-        WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Unhandled Packet]", client.IP, client.Port, packet.OpCode);
+        WorldServiceLocator.WorldServer.Log
+            .WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Unhandled Packet]", client.IP, client.Port, packet.OpCode);
     }
 
-    public void OnWorldPacket(ref Packets.PacketClass packet, ref WS_Network.ClientClass client)
+    public void OnWorldPacket(ref Packets.Packets.PacketClass packet, ref WS_Network.ClientClass client)
     {
-        WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Redirected Packet]", client.IP, client.Port, packet.OpCode);
-        if (client.Character == null || !client.Character.FullyLoggedIn)
+        WorldServiceLocator.WorldServer.Log
+            .WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Redirected Packet]", client.IP, client.Port, packet.OpCode);
+        if((client.Character?.FullyLoggedIn) != true)
         {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "[{0}:{1}] Unknown Opcode 0x{2:X} [{2}], DataLen={4}", client.IP, client.Port, packet.OpCode, Environment.NewLine, packet.Length);
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.WARNING,
+                    "[{0}:{1}] Unknown Opcode 0x{2:X} [{2}], DataLen={4}",
+                    client.IP,
+                    client.Port,
+                    packet.OpCode,
+                    Environment.NewLine,
+                    packet.Length);
             WorldServiceLocator.Packets.DumpPacket(packet.Data, client);
         }
     }

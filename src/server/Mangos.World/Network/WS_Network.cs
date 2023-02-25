@@ -31,7 +31,5 @@ public partial class WS_Network
     }
 
     public int MsTime()
-    {
-        return checked(WC_MsTime + (WorldServiceLocator.NativeMethods.timeGetTime("") - LastPing));
-    }
+    { return checked(WC_MsTime + (WorldServiceLocator.NativeMethods.timeGetTime(string.Empty) - LastPing)); }
 }

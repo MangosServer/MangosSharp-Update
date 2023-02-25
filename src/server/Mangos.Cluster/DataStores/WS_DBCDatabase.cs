@@ -28,113 +28,39 @@ using System.Threading.Tasks;
 
 namespace Mangos.Cluster.DataStores;
 
-public class WsDbcDatabase
+public class WS_DBCDatabase
 {
+    private readonly string _chatChannelsDbc = "ChatChannels.dbc";
+    private readonly string _chrClassesDbc = "ChrClasses.dbc";
+    private readonly string _chrRacesDbc = "ChrRaces.dbc";
     private readonly ClusterServiceLocator _clusterServiceLocator;
     private readonly DataStoreProvider _dataStoreProvider;
-
-    public WsDbcDatabase(DataStoreProvider dataStoreProvider, ClusterServiceLocator clusterServiceLocator)
-    {
-        _dataStoreProvider = dataStoreProvider;
-        _clusterServiceLocator = clusterServiceLocator;
-    }
-
     private readonly string _mapDbc = "Map.dbc";
-    public Dictionary<int, MapInfo> Maps = new();
-
-    public async Task InitializeMapsAsync()
-    {
-        try
-        {
-            var data = await _dataStoreProvider.GetDataStoreAsync(_mapDbc);
-            for (int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
-            {
-                MapInfo m = new()
-                {
-                    Id = data.ReadInt(i, 0),
-                    Type = (MapTypes)data.ReadInt(i, 2),
-                    Name = data.ReadString(i, 4),
-                    ParentMap = data.ReadInt(i, 3),
-                    ResetTime = data.ReadInt(i, 38),
-                };
-                Maps.Add(m.Id, m);
-            }
-
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "DBC: {0} Maps Initialized.", data.Rows - 1);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("DBC File : Maps.dbc missing.");
-            Console.ForegroundColor = ConsoleColor.Gray;
-        }
-    }
-
-    public class MapInfo
-    {
-        public int Id;
-        public MapTypes Type = MapTypes.MAP_COMMON;
-        public string Name = "";
-        public int ParentMap = -1;
-        public int ResetTime;
-
-        public bool IsDungeon => Type is MapTypes.MAP_INSTANCE or MapTypes.MAP_RAID;
-
-        public bool IsRaid => Type == MapTypes.MAP_RAID;
-
-        public bool IsBattleGround => Type == MapTypes.MAP_BATTLEGROUND;
-
-        public bool HasResetTime => ResetTime != 0;
-    }
-
     private readonly string _worldSafeLocsDbc = "WorldSafeLocs.dbc";
-    public Dictionary<int, WorldSafeLoc> WorldSafeLocs = new();
-
-    public async Task InitializeWorldSafeLocsAsync()
-    {
-        try
-        {
-            var data = await _dataStoreProvider.GetDataStoreAsync(_worldSafeLocsDbc);
-            for (int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
-            {
-                WorldSafeLoc worldSafeLoc = new()
-                {
-                    Id = data.ReadInt(i, 0),
-                    Map = (uint)data.ReadInt(i, 1),
-                    X = data.ReadFloat(i, 2),
-                    Y = data.ReadFloat(i, 3),
-                    Z = data.ReadFloat(i, 4),
-                };
-                WorldSafeLocs.Add(worldSafeLoc.Id, worldSafeLoc);
-            }
-
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "DBC: {0} WorldSafeLocs Initialized.", data.Rows - 1);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("DBC File : WorldSafeLocs.dbc missing.");
-            Console.ForegroundColor = ConsoleColor.Gray;
-        }
-    }
-
-    public class WorldSafeLoc
-    {
-        public int Id;
-        public uint Map;
-        public float X;
-        public float Y;
-        public float Z;
-    }
 
     public Dictionary<byte, Battleground> Battlegrounds = new();
+
+    public Dictionary<int, CharClass> CharClasses = new();
+
+    public Dictionary<int, CharRace> CharRaces = new();
+    public Dictionary<int, ChatChannelInfo> ChatChannelsInfo = new();
+    public Dictionary<int, MapInfo> Maps = new();
+    public Dictionary<int, WorldSafeLoc> WorldSafeLocs = new();
+
+    public WS_DBCDatabase(DataStoreProvider dataStoreProvider, ClusterServiceLocator clusterServiceLocator)
+    {
+        _dataStoreProvider = dataStoreProvider ?? throw new ArgumentNullException(nameof(dataStoreProvider));
+        _clusterServiceLocator = clusterServiceLocator ?? throw new ArgumentNullException(nameof(clusterServiceLocator));
+    }
 
     public void InitializeBattlegrounds()
     {
         byte entry;
         DataTable mySqlQuery = new();
-        _clusterServiceLocator.WorldCluster.GetWorldDatabase().Query("SELECT * FROM battleground_template", ref mySqlQuery);
-        foreach (DataRow row in mySqlQuery.Rows)
+        _clusterServiceLocator.WorldCluster
+            .GetWorldDatabase()
+            .Query("SELECT * FROM battleground_template", ref mySqlQuery);
+        foreach(DataRow row in mySqlQuery.Rows)
         {
             entry = row.As<byte>("id");
             Battlegrounds.Add(entry, new Battleground());
@@ -152,60 +78,34 @@ public class WsDbcDatabase
             Battlegrounds[entry].HordeStartO = row.As<float>("HordeStartO");
         }
 
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "World: {0} Battlegrounds Initialized.", mySqlQuery.Rows.Count);
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.INFORMATION, "World: {0} Battlegrounds Initialized.", mySqlQuery.Rows.Count);
     }
 
-    public class Battleground
-    {
-        // Public Map As UInteger
-        public byte MinPlayersPerTeam;
-
-        public byte MaxPlayersPerTeam;
-        public byte MinLevel;
-        public byte MaxLevel;
-        public int AllianceStartLoc;
-        public float AllianceStartO;
-        public int HordeStartLoc;
-        public float HordeStartO;
-    }
-
-    private readonly string _chatChannelsDbc = "ChatChannels.dbc";
-    public Dictionary<int, ChatChannelInfo> ChatChannelsInfo = new();
-
-    public async Task InitializeChatChannelsAsync()
+    public async Task InitializeCharClassesAsync()
     {
         try
         {
-            var data = await _dataStoreProvider.GetDataStoreAsync(_chatChannelsDbc);
-            for (int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
+            // Loading from DBC
+            int classId;
+            int cinematicId;
+            var dataStore = await _dataStoreProvider.GetDataStoreAsync(_chrClassesDbc);
+            for(int i = 0, loopTo = dataStore.Rows - 1; i <= loopTo; i++)
             {
-                ChatChannelInfo chatChannels = new()
-                {
-                    Index = data.ReadInt(i, 0),
-                    Flags = data.ReadInt(i, 1),
-                    Name = data.ReadString(i, 3),
-                };
-                ChatChannelsInfo.Add(chatChannels.Index, chatChannels);
+                classId = dataStore.ReadInt(i, 0);
+                cinematicId = dataStore.ReadInt(i, 5); // or 14 or 15?
+                CharClasses[(byte)classId] = new CharClass(cinematicId);
             }
 
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "DBC: {0} ChatChannels Initialized.", data.Rows - 1);
-        }
-        catch (DirectoryNotFoundException)
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "DBC: {0} ChrClasses Loaded.", dataStore.Rows - 1);
+        } catch(DirectoryNotFoundException)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("DBC File : ChatChannels.dbc missing.");
+            Console.WriteLine("DBC File : ChrClasses.dbc missing.");
             Console.ForegroundColor = ConsoleColor.Gray;
         }
     }
-
-    public class ChatChannelInfo
-    {
-        public int Index;
-        public int Flags;
-        public string Name;
-    }
-
-    private readonly string _chrRacesDbc = "ChrRaces.dbc";
 
     public async Task InitializeCharRacesAsync()
     {
@@ -219,7 +119,7 @@ public class WsDbcDatabase
             int teamId; // 1 = Horde / 7 = Alliance
             int cinematicId;
             var data = await _dataStoreProvider.GetDataStoreAsync(_chrRacesDbc);
-            for (int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
+            for(int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
             {
                 raceId = data.ReadInt(i, 0);
                 factionId = data.ReadInt(i, 2);
@@ -230,9 +130,9 @@ public class WsDbcDatabase
                 CharRaces[(byte)raceId] = new CharRace((short)factionId, modelM, modelF, (byte)teamId, cinematicId);
             }
 
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "DBC: {0} ChrRace Loaded.", data.Rows - 1);
-        }
-        catch (DirectoryNotFoundException)
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "DBC: {0} ChrRace Loaded.", data.Rows - 1);
+        } catch(DirectoryNotFoundException)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("DBC File : ChrRaces.dbc missing.");
@@ -240,42 +140,142 @@ public class WsDbcDatabase
         }
     }
 
-    private readonly string _chrClassesDbc = "ChrClasses.dbc";
-
-    public async Task InitializeCharClassesAsync()
+    public async Task InitializeChatChannelsAsync()
     {
         try
         {
-            // Loading from DBC
-            int classId;
-            int cinematicId;
-            var dataStore = await _dataStoreProvider.GetDataStoreAsync(_chrClassesDbc);
-            for (int i = 0, loopTo = dataStore.Rows - 1; i <= loopTo; i++)
+            var data = await _dataStoreProvider.GetDataStoreAsync(_chatChannelsDbc);
+            for(int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
             {
-                classId = dataStore.ReadInt(i, 0);
-                cinematicId = dataStore.ReadInt(i, 5); // or 14 or 15?
-                CharClasses[(byte)classId] = new CharClass(cinematicId);
+                ChatChannelInfo chatChannels = new()
+                {
+                    Index = data.ReadInt(i, 0),
+                    Flags = data.ReadInt(i, 1),
+                    Name = data.ReadString(i, 3),
+                };
+                ChatChannelsInfo.Add(chatChannels.Index, chatChannels);
             }
 
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "DBC: {0} ChrClasses Loaded.", dataStore.Rows - 1);
-        }
-        catch (DirectoryNotFoundException)
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "DBC: {0} ChatChannels Initialized.", data.Rows - 1);
+        } catch(DirectoryNotFoundException)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("DBC File : ChrClasses.dbc missing.");
+            Console.WriteLine("DBC File : ChatChannels.dbc missing.");
             Console.ForegroundColor = ConsoleColor.Gray;
         }
     }
 
-    public Dictionary<int, CharRace> CharRaces = new();
+    public async Task InitializeMapsAsync()
+    {
+        try
+        {
+            var data = await _dataStoreProvider.GetDataStoreAsync(_mapDbc);
+            for(int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
+            {
+                MapInfo m = new()
+                {
+                    Id = data.ReadInt(i, 0),
+                    Type = (MapTypes)data.ReadInt(i, 2),
+                    Name = data.ReadString(i, 4),
+                    ParentMap = data.ReadInt(i, 3),
+                    ResetTime = data.ReadInt(i, 38),
+                };
+                Maps.Add(m.Id, m);
+            }
+
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "DBC: {0} Maps Initialized.", data.Rows - 1);
+        } catch(DirectoryNotFoundException)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("DBC File : Maps.dbc missing.");
+            Console.ForegroundColor = ConsoleColor.Gray;
+        }
+    }
+
+    public async Task InitializeWorldSafeLocsAsync()
+    {
+        try
+        {
+            var data = await _dataStoreProvider.GetDataStoreAsync(_worldSafeLocsDbc);
+            for(int i = 0, loopTo = data.Rows - 1; i <= loopTo; i++)
+            {
+                WorldSafeLoc worldSafeLoc = new()
+                {
+                    Id = data.ReadInt(i, 0),
+                    Map = (uint)data.ReadInt(i, 1),
+                    X = data.ReadFloat(i, 2),
+                    Y = data.ReadFloat(i, 3),
+                    Z = data.ReadFloat(i, 4),
+                };
+                WorldSafeLocs.Add(worldSafeLoc.Id, worldSafeLoc);
+            }
+
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "DBC: {0} WorldSafeLocs Initialized.", data.Rows - 1);
+        } catch(DirectoryNotFoundException)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("DBC File : WorldSafeLocs.dbc missing.");
+            Console.ForegroundColor = ConsoleColor.Gray;
+        }
+    }
+
+    public class MapInfo
+    {
+        public int Id;
+        public string Name = string.Empty;
+        public int ParentMap = -1;
+        public int ResetTime;
+        public MapTypes Type = MapTypes.MAP_COMMON;
+
+        public bool HasResetTime => ResetTime != 0;
+
+        public bool IsBattleGround => Type == MapTypes.MAP_BATTLEGROUND;
+
+        public bool IsDungeon => Type is MapTypes.MAP_INSTANCE or MapTypes.MAP_RAID;
+
+        public bool IsRaid => Type == MapTypes.MAP_RAID;
+    }
+
+    public class WorldSafeLoc
+    {
+        public int Id;
+        public uint Map;
+        public float X;
+        public float Y;
+        public float Z;
+    }
+
+    public class Battleground
+    {
+        public int AllianceStartLoc;
+        public float AllianceStartO;
+        public int HordeStartLoc;
+        public float HordeStartO;
+        public byte MaxLevel;
+
+        public byte MaxPlayersPerTeam;
+        public byte MinLevel;
+        // Public Map As UInteger
+        public byte MinPlayersPerTeam;
+    }
+
+    public class ChatChannelInfo
+    {
+        public int Flags;
+        public int Index;
+        public string Name;
+    }
 
     public class CharRace
     {
-        public short FactionId;
-        public int ModelMale;
-        public int ModelFemale;
-        public byte TeamId;
         public int CinematicId;
+        public short FactionId;
+        public int ModelFemale;
+        public int ModelMale;
+        public byte TeamId;
 
         public CharRace(short faction, int modelM, int modelF, byte team, int cinematic)
         {
@@ -287,15 +287,10 @@ public class WsDbcDatabase
         }
     }
 
-    public Dictionary<int, CharClass> CharClasses = new();
-
     public class CharClass
     {
         public int CinematicId;
 
-        public CharClass(int cinematic)
-        {
-            CinematicId = cinematic;
-        }
+        public CharClass(int cinematic) { CinematicId = cinematic; }
     }
 }

@@ -32,32 +32,38 @@ namespace Mangos.World.Globals;
 
 public class ScriptedObject : IDisposable
 {
-    public Assembly ass;
-
     private bool _disposedValue;
+    public Assembly ass;
 
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     public ScriptedObject()
     {
-        var AssemblyFile = "Mangos.World.Scripts.dll";
-        var AssemblySources = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\Scripts\\", "*.cs", SearchOption.AllDirectories);
-        var AssemblySources2 = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\Scripts\\", "*.vb", SearchOption.AllDirectories);
+        const string AssemblyFile = "Mangos.World.Scripts.dll";
+        var AssemblySources = Directory.GetFiles(
+            $"{AppDomain.CurrentDomain.BaseDirectory}\\Scripts\\",
+            "*.cs",
+            SearchOption.AllDirectories);
+        var AssemblySources2 = Directory.GetFiles(
+            $"{AppDomain.CurrentDomain.BaseDirectory}\\Scripts\\",
+            "*.vb",
+            SearchOption.AllDirectories);
         DateTime LastDate = default;
-        foreach (var Source in AssemblySources)
+        foreach(var Source in AssemblySources)
         {
-            if (DateTime.Compare(LastDate, FileSystem.FileDateTime(Source)) < 0)
+            if(DateTime.Compare(LastDate, FileSystem.FileDateTime(Source)) < 0)
             {
                 LastDate = FileSystem.FileDateTime(Source);
             }
         }
-        foreach (var Source in AssemblySources2)
+        foreach(var Source in AssemblySources2)
         {
-            if (DateTime.Compare(LastDate, FileSystem.FileDateTime(Source)) < 0)
+            if(DateTime.Compare(LastDate, FileSystem.FileDateTime(Source)) < 0)
             {
                 LastDate = FileSystem.FileDateTime(Source);
             }
         }
-        if (Operators.CompareString(Path.GetFileName(AssemblyFile), "", TextCompare: false) != 0 && DateTime.Compare(LastDate, FileSystem.FileDateTime(AssemblyFile)) < 0)
+        if((Operators.CompareString(Path.GetFileName(AssemblyFile), string.Empty, TextCompare: false) != 0) &&
+            (DateTime.Compare(LastDate, FileSystem.FileDateTime(AssemblyFile)) < 0))
         {
             LoadAssemblyObject(AssemblyFile);
             return;
@@ -71,13 +77,13 @@ public class ScriptedObject : IDisposable
             IEnumerator enumerator = default;
             try
             {
-                cParameters.ReferencedAssemblies.AddRange(WorldServiceLocator.MangosConfiguration.World.ScriptsCompiler.ToArray());
-            }
-            finally
+                cParameters.ReferencedAssemblies
+                    .AddRange(WorldServiceLocator.MangosConfiguration.World.ScriptsCompiler.ToArray());
+            } finally
             {
-                if (enumerator is IDisposable)
+                if(enumerator is IDisposable)
                 {
-                    (enumerator as IDisposable).Dispose();
+                    (enumerator as IDisposable)?.Dispose();
                 }
             }
             cParameters.OutputAssembly = AssemblyFile;
@@ -87,41 +93,49 @@ public class ScriptedObject : IDisposable
             cParameters.IncludeDebugInformation = true;
             var cResults = CSCP.CompileAssemblyFromFile(cParameters, AssemblySources);
             var cResults2 = VBCP.CompileAssemblyFromFile(cParameters, AssemblySources2);
-            if (cResults.Errors.HasErrors)
+            if(cResults.Errors.HasErrors)
             {
                 IEnumerator enumerator2 = default;
                 try
                 {
                     enumerator2 = cResults.Errors.GetEnumerator();
-                    while (enumerator2.MoveNext())
+                    while(enumerator2.MoveNext())
                     {
-                        CompilerError err = (CompilerError)enumerator2.Current;
-                        WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Compiling: Error on line {1} in {3}:{0}{2}", Environment.NewLine, err.Line, err.ErrorText, err.FileName);
+                        var err = (CompilerError)enumerator2.Current;
+                        WorldServiceLocator.WorldServer.Log
+                            .WriteLine(
+                                LogType.FAILED,
+                                "Compiling: Error on line {1} in {3}:{0}{2}",
+                                Environment.NewLine,
+                                err.Line,
+                                err.ErrorText,
+                                err.FileName);
                     }
-                }
-                finally
+                } finally
                 {
-                    if (enumerator2 is IDisposable)
+                    if(enumerator2 is IDisposable)
                     {
-                        (enumerator2 as IDisposable).Dispose();
+                        (enumerator2 as IDisposable)?.Dispose();
                     }
                 }
-            }
-            else
+            } else
             {
                 ass = cResults.CompiledAssembly;
             }
-        }
-        catch (Exception e)
+        } catch(Exception e)
         {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Unable to compile scripts. {1}{0}", e.ToString(), Environment.NewLine);
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(LogType.FAILED, "Unable to compile scripts. {1}{0}", e.ToString(), Environment.NewLine);
         }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     public ScriptedObject(string AssemblySourceFile, string AssemblyFile, bool InMemory)
     {
-        if (!InMemory && Operators.CompareString(Path.GetFileName(AssemblyFile), "", TextCompare: false) != 0 && DateTime.Compare(FileSystem.FileDateTime(AssemblySourceFile), FileSystem.FileDateTime(AssemblyFile)) < 0)
+        if(!InMemory &&
+            (Operators.CompareString(Path.GetFileName(AssemblyFile), string.Empty, TextCompare: false) != 0) &&
+            (DateTime.Compare(FileSystem.FileDateTime(AssemblySourceFile), FileSystem.FileDateTime(AssemblyFile)) <
+                0))
         {
             LoadAssemblyObject(AssemblyFile);
             return;
@@ -132,171 +146,97 @@ public class ScriptedObject : IDisposable
             CSharpCodeProvider CSCP = new();
             VBCodeProvider VBCP = new();
             CompilerParameters cParameters = new();
-            if (!InMemory)
+            if(!InMemory)
             {
                 cParameters.OutputAssembly = AssemblyFile;
             }
 
-            cParameters.ReferencedAssemblies.AddRange(WorldServiceLocator.MangosConfiguration.World.ScriptsCompiler.ToArray());
+            cParameters.ReferencedAssemblies
+                .AddRange(WorldServiceLocator.MangosConfiguration.World.ScriptsCompiler.ToArray());
             cParameters.ReferencedAssemblies.Add(AppDomain.CurrentDomain.FriendlyName);
             cParameters.GenerateExecutable = false;
             cParameters.GenerateInMemory = InMemory;
             cParameters.IncludeDebugInformation = true;
             CompilerResults cResults;
-            if (AssemblySourceFile.IndexOf(".cs") != -1)
+            if(AssemblySourceFile.IndexOf(".cs") != (-1))
             {
-                cResults = CSCP.CompileAssemblyFromFile(cParameters, AppDomain.CurrentDomain.BaseDirectory + AssemblySourceFile);
+                cResults = CSCP.CompileAssemblyFromFile(
+                    cParameters,
+                    AppDomain.CurrentDomain.BaseDirectory + AssemblySourceFile);
                 goto IL_01b5;
             }
-            if (AssemblySourceFile.IndexOf(".vb") != -1)
+            if(AssemblySourceFile.IndexOf(".vb") != (-1))
             {
-                cResults = VBCP.CompileAssemblyFromFile(cParameters, AppDomain.CurrentDomain.BaseDirectory + AssemblySourceFile);
+                cResults = VBCP.CompileAssemblyFromFile(
+                    cParameters,
+                    AppDomain.CurrentDomain.BaseDirectory + AssemblySourceFile);
                 goto IL_01b5;
             }
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Compiling: Unsupported file type: {0}", AssemblySourceFile);
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(LogType.FAILED, "Compiling: Unsupported file type: {0}", AssemblySourceFile);
             goto end_IL_0068;
-        IL_01b5:
-            if (cResults.Errors.HasErrors)
+            IL_01b5:
+            if(cResults.Errors.HasErrors)
             {
                 IEnumerator enumerator2 = default;
                 try
                 {
                     enumerator2 = cResults.Errors.GetEnumerator();
-                    while (enumerator2.MoveNext())
+                    while(enumerator2.MoveNext())
                     {
-                        CompilerError err = (CompilerError)enumerator2.Current;
-                        WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Compiling: Error on line {1}:{0}{2}", Environment.NewLine, err.Line, err.ErrorText);
+                        var err = (CompilerError)enumerator2.Current;
+                        WorldServiceLocator.WorldServer.Log
+                            .WriteLine(
+                                LogType.FAILED,
+                                "Compiling: Error on line {1}:{0}{2}",
+                                Environment.NewLine,
+                                err.Line,
+                                err.ErrorText);
                     }
-                }
-                finally
+                } finally
                 {
-                    if (enumerator2 is IDisposable)
+                    if(enumerator2 is IDisposable)
                     {
-                        (enumerator2 as IDisposable).Dispose();
+                        (enumerator2 as IDisposable)?.Dispose();
                     }
                 }
-            }
-            else
+            } else
             {
                 ass = cResults.CompiledAssembly;
             }
-        end_IL_0068:
+            end_IL_0068:
             ;
-        }
-        catch (Exception e)
+        } catch(Exception e)
         {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Unable to compile script [{0}]. {2}{1}", AssemblySourceFile, e.ToString(), Environment.NewLine);
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Unable to compile script [{0}]. {2}{1}",
+                    AssemblySourceFile,
+                    e.ToString(),
+                    Environment.NewLine);
         }
     }
 
-    public void InvokeFunction(string MyModule, string MyMethod, object Parameters = null)
+    void IDisposable.Dispose()
     {
-        try
-        {
-            var ty = ass.GetType("Scripts." + MyModule);
-            var mi = ty.GetMethod(MyMethod);
-            mi.Invoke(null, (object[])Parameters);
-        }
-        catch (TargetInvocationException e2)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Script execution error:{1}{0}", e2.GetBaseException().ToString(), Environment.NewLine);
-        }
-        catch (Exception ex2)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Script Method [{0}] not found in [Scripts.{1}]!", MyMethod, MyModule, ex2);
-        }
-    }
-
-    public object InvokeConstructor(string MyBaseClass, object Parameters = null)
-    {
-        try
-        {
-            var ty = ass.GetType("Scripts." + MyBaseClass);
-            var ci = ty.GetConstructors();
-            return ci[0].Invoke((object[])Parameters);
-        }
-        catch (NullReferenceException ex)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Scripted Class [{0}] not found in [Scripts]!", MyBaseClass, ex);
-        }
-        catch (Exception e)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Script execution error:{1}{0}", e.GetBaseException().ToString(), Environment.NewLine);
-        }
-        return null;
-    }
-
-    public object InvokeProperty(string MyModule, string MyProperty)
-    {
-        try
-        {
-            var ty = ass.GetType("Scripts." + MyModule);
-            var pi = ty.GetProperty(MyProperty);
-            return pi.GetValue(null, null);
-        }
-        catch (NullReferenceException ex)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Scripted Property [{1}] not found in [Scripts.{1}]!", MyModule, MyProperty, ex);
-        }
-        catch (Exception e)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Script execution error:{1}{0}", e.GetBaseException().ToString(), Environment.NewLine);
-        }
-        return null;
-    }
-
-    public object InvokeField(string MyModule, string MyField)
-    {
-        try
-        {
-            var ty = ass.GetType("Scripts." + MyModule);
-            var fi = ty.GetField(MyField, BindingFlags.Static | BindingFlags.Public);
-            return fi.GetValue(null);
-        }
-        catch (NullReferenceException ex)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Scripted Field [{1}] not found in [Scripts.{0}]!", MyModule, MyField, ex);
-        }
-        catch (Exception e)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Script execution error:{1}{0}", e.GetBaseException().ToString(), Environment.NewLine);
-        }
-        return null;
-    }
-
-    public bool ContainsMethod(string MyModule, string MyMethod)
-    {
-        var ty = ass.GetType("Scripts." + MyModule);
-        var mi = ty.GetMethod(MyMethod);
-        return mi is not null;
-    }
-
-    public void LoadAssemblyObject(string dllLocation)
-    {
-        try
-        {
-            ass = Assembly.LoadFrom(dllLocation);
-        }
-        catch (FileNotFoundException ex)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "DLL not found error:{1}{0}", ex.GetBaseException().ToString(), Environment.NewLine);
-        }
-        catch (ArgumentNullException ex2)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "DLL NULL error:{1}{0}", ex2.GetBaseException().ToString(), Environment.NewLine);
-        }
-        catch (BadImageFormatException ex3)
-        {
-            WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "DLL not a valid assembly error:{1}{0}", ex3.GetBaseException().ToString(), Environment.NewLine);
-        }
+        //ILSpy generated this explicit interface implementation from .override directive in Dispose
+        Dispose();
     }
 
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposedValue)
+        if(!_disposedValue)
         {
         }
         _disposedValue = true;
+    }
+
+    public bool ContainsMethod(string MyModule, string MyMethod)
+    {
+        var ty = ass.GetType($"Scripts.{MyModule}");
+        var mi = ty.GetMethod(MyMethod);
+        return mi is not null;
     }
 
     public void Dispose()
@@ -305,9 +245,141 @@ public class ScriptedObject : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    void IDisposable.Dispose()
+    public object InvokeConstructor(string MyBaseClass, object Parameters = null)
     {
-        //ILSpy generated this explicit interface implementation from .override directive in Dispose
-        Dispose();
+        try
+        {
+            var ty = ass.GetType($"Scripts.{MyBaseClass}");
+            var ci = ty.GetConstructors();
+            return ci[0].Invoke((object[])Parameters);
+        } catch(NullReferenceException ex)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(LogType.FAILED, "Scripted Class [{0}] not found in [Scripts]!", MyBaseClass, ex);
+        } catch(Exception e)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Script execution error:{1}{0}",
+                    e.GetBaseException().ToString(),
+                    Environment.NewLine);
+        }
+        return null;
+    }
+
+    public object InvokeField(string MyModule, string MyField)
+    {
+        try
+        {
+            var ty = ass.GetType($"Scripts.{MyModule}");
+            var fi = ty.GetField(MyField, BindingFlags.Static | BindingFlags.Public);
+            return fi.GetValue(null);
+        } catch(NullReferenceException ex)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Scripted Field [{1}] not found in [Scripts.{0}]!",
+                    MyModule,
+                    MyField,
+                    ex);
+        } catch(Exception e)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Script execution error:{1}{0}",
+                    e.GetBaseException().ToString(),
+                    Environment.NewLine);
+        }
+        return null;
+    }
+
+    public void InvokeFunction(string MyModule, string MyMethod, object Parameters = null)
+    {
+        try
+        {
+            var ty = ass.GetType($"Scripts.{MyModule}");
+            var mi = ty.GetMethod(MyMethod);
+            mi.Invoke(null, (object[])Parameters);
+        } catch(TargetInvocationException e2)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Script execution error:{1}{0}",
+                    e2.GetBaseException().ToString(),
+                    Environment.NewLine);
+        } catch(Exception ex2)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Script Method [{0}] not found in [Scripts.{1}]!",
+                    MyMethod,
+                    MyModule,
+                    ex2);
+        }
+    }
+
+    public object InvokeProperty(string MyModule, string MyProperty)
+    {
+        try
+        {
+            var ty = ass.GetType($"Scripts.{MyModule}");
+            var pi = ty.GetProperty(MyProperty);
+            return pi.GetValue(null, null);
+        } catch(NullReferenceException ex)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Scripted Property [{1}] not found in [Scripts.{1}]!",
+                    MyModule,
+                    MyProperty,
+                    ex);
+        } catch(Exception e)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Script execution error:{1}{0}",
+                    e.GetBaseException().ToString(),
+                    Environment.NewLine);
+        }
+        return null;
+    }
+
+    public void LoadAssemblyObject(string dllLocation)
+    {
+        try
+        {
+            ass = Assembly.LoadFrom(dllLocation);
+        } catch(FileNotFoundException ex)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "DLL not found error:{1}{0}",
+                    ex.GetBaseException().ToString(),
+                    Environment.NewLine);
+        } catch(ArgumentNullException ex2)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "DLL NULL error:{1}{0}",
+                    ex2.GetBaseException().ToString(),
+                    Environment.NewLine);
+        } catch(BadImageFormatException ex3)
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "DLL not a valid assembly error:{1}{0}",
+                    ex3.GetBaseException().ToString(),
+                    Environment.NewLine);
+        }
     }
 }

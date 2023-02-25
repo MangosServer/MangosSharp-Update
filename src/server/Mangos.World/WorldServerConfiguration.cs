@@ -32,32 +32,63 @@ public class WorldServerConfiguration
     [XmlElement(ElementName = "CharacterDatabase")]
     public string CharacterDatabase;
 
-    [XmlElement(ElementName = "WorldDatabase")]
-    public string WorldDatabase;
+    [XmlElement(ElementName = "ClusterConnectHost")]
+    public string ClusterConnectHost;
 
-    [XmlElement(ElementName = "ServerPlayerLimit")]
-    public int ServerPlayerLimit;
+    [XmlElement(ElementName = "ClusterConnectPort")]
+    public int ClusterConnectPort;
 
     [XmlElement(ElementName = "CommandCharacter")]
     public string CommandCharacter;
 
-    [XmlElement(ElementName = "XPRate")]
-    public float XPRate;
+    [XmlArray(ElementName = "ScriptsCompiler")]
+    [XmlArrayItem(typeof(string), ElementName = "Include")]
+    public ArrayList CompilerInclude;
 
-    [XmlElement(ElementName = "ManaRegenerationRate")]
-    public float ManaRegenerationRate;
+    [XmlElement(ElementName = "CreateArenas")]
+    public bool CreateArenas;
 
-    [XmlElement(ElementName = "HealthRegenerationRate")]
-    public float HealthRegenerationRate;
+    [XmlElement(ElementName = "CreateBattlegrounds")]
+    public bool CreateBattlegrounds;
+
+    [XmlElement(ElementName = "CreateOther")]
+    public bool CreateOther;
+
+    [XmlElement(ElementName = "CreatePartyInstances")]
+    public bool CreatePartyInstances;
+
+    [XmlElement(ElementName = "CreateRaidInstances")]
+    public bool CreateRaidInstances;
 
     [XmlElement(ElementName = "GlobalAuction")]
     public bool GlobalAuction;
 
-    [XmlElement(ElementName = "SaveTimer")]
-    public int SaveTimer;
+    [XmlElement(ElementName = "HealthRegenerationRate")]
+    public float HealthRegenerationRate;
 
-    [XmlElement(ElementName = "WeatherTimer")]
-    public int WeatherTimer;
+    [XmlElement(ElementName = "VMapHeightCalc")]
+    public bool HeightCalcEnabled;
+
+    [XmlElement(ElementName = "VMapLineOfSightCalc")]
+    public bool LineOfSightEnabled;
+
+    [XmlElement(ElementName = "LocalConnectHost")]
+    public string LocalConnectHost;
+
+    [XmlElement(ElementName = "LocalConnectPort")]
+    public int LocalConnectPort;
+
+    [XmlElement(ElementName = "LogConfig")]
+    public string LogConfig;
+
+    [XmlElement(ElementName = "LogLevel")]
+    public LogType LogLevel;
+
+    [XmlElement(ElementName = "LogType")]
+    public string LogType;
+
+    [XmlElement(ElementName = "ManaRegenerationRate")]
+    public float ManaRegenerationRate;
 
     [XmlElement(ElementName = "MapResolution")]
     public int MapResolution;
@@ -66,54 +97,23 @@ public class WorldServerConfiguration
     [XmlArrayItem(typeof(string), ElementName = "Map")]
     public List<string> Maps;
 
+    [XmlElement(ElementName = "SaveTimer")]
+    public int SaveTimer;
+
+    [XmlElement(ElementName = "ServerPlayerLimit")]
+    public int ServerPlayerLimit;
+
     [XmlElement(ElementName = "VMaps")]
     public bool VMapsEnabled;
 
-    [XmlElement(ElementName = "VMapLineOfSightCalc")]
-    public bool LineOfSightEnabled;
+    [XmlElement(ElementName = "WeatherTimer")]
+    public int WeatherTimer;
 
-    [XmlElement(ElementName = "VMapHeightCalc")]
-    public bool HeightCalcEnabled;
+    [XmlElement(ElementName = "WorldDatabase")]
+    public string WorldDatabase;
 
-    [XmlElement(ElementName = "LogType")]
-    public string LogType;
-
-    [XmlElement(ElementName = "LogLevel")]
-    public LogType LogLevel;
-
-    [XmlElement(ElementName = "LogConfig")]
-    public string LogConfig;
-
-    [XmlArray(ElementName = "ScriptsCompiler")]
-    [XmlArrayItem(typeof(string), ElementName = "Include")]
-    public ArrayList CompilerInclude;
-
-    [XmlElement(ElementName = "CreatePartyInstances")]
-    public bool CreatePartyInstances;
-
-    [XmlElement(ElementName = "CreateRaidInstances")]
-    public bool CreateRaidInstances;
-
-    [XmlElement(ElementName = "CreateBattlegrounds")]
-    public bool CreateBattlegrounds;
-
-    [XmlElement(ElementName = "CreateArenas")]
-    public bool CreateArenas;
-
-    [XmlElement(ElementName = "CreateOther")]
-    public bool CreateOther;
-
-    [XmlElement(ElementName = "ClusterConnectHost")]
-    public string ClusterConnectHost;
-
-    [XmlElement(ElementName = "ClusterConnectPort")]
-    public int ClusterConnectPort;
-
-    [XmlElement(ElementName = "LocalConnectHost")]
-    public string LocalConnectHost;
-
-    [XmlElement(ElementName = "LocalConnectPort")]
-    public int LocalConnectPort;
+    [XmlElement(ElementName = "XPRate")]
+    public float XPRate;
 
     public WorldServerConfiguration()
     {
@@ -135,7 +135,7 @@ public class WorldServerConfiguration
         HeightCalcEnabled = false;
         LogType = "FILE";
         LogLevel = Common.Enums.Global.LogType.NETWORK;
-        LogConfig = "";
+        LogConfig = string.Empty;
         CompilerInclude = new ArrayList();
         CreatePartyInstances = false;
         CreateRaidInstances = false;

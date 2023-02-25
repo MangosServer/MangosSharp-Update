@@ -23,28 +23,12 @@ using System.Threading.Tasks;
 
 namespace Mangos.Cluster.DataStores;
 
-public class WsDbcLoad
+public class WS_DBCLoad
 {
     private readonly ClusterServiceLocator _clusterServiceLocator;
 
-    public WsDbcLoad(ClusterServiceLocator clusterServiceLocator)
-    {
-        _clusterServiceLocator = clusterServiceLocator;
-    }
-
-    public async Task InitializeInternalDatabaseAsync()
-    {
-        await InitializeLoadDataStoresAsync().ConfigureAwait(false);
-        try
-        {
-            // Set all characters offline
-            _clusterServiceLocator.WorldCluster.GetCharacterDatabase().Update("UPDATE characters SET char_online = 0;");
-        }
-        catch (Exception e)
-        {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.FAILED, "Internal database initialization failed! [{0}]{1}{2}", e.Message, Constants.vbCrLf, e.ToString());
-        }
-    }
+    public WS_DBCLoad(ClusterServiceLocator clusterServiceLocator)
+    { _clusterServiceLocator = clusterServiceLocator ?? throw new ArgumentNullException(nameof(clusterServiceLocator)); }
 
     private async Task InitializeLoadDataStoresAsync()
     {
@@ -55,5 +39,26 @@ public class WsDbcLoad
             _clusterServiceLocator.WsDbcDatabase.InitializeWorldSafeLocsAsync(),
             _clusterServiceLocator.WsDbcDatabase.InitializeCharRacesAsync(),
             _clusterServiceLocator.WsDbcDatabase.InitializeCharClassesAsync());
+    }
+
+    public async Task InitializeInternalDatabaseAsync()
+    {
+        await InitializeLoadDataStoresAsync().ConfigureAwait(false);
+        try
+        {
+            // Set all characters offline
+            _clusterServiceLocator.WorldCluster
+                .GetCharacterDatabase()
+                .Update("UPDATE characters SET char_online = 0;");
+        } catch(Exception e)
+        {
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(
+                    LogType.FAILED,
+                    "Internal database initialization failed! [{0}]{1}{2}",
+                    e.Message,
+                    Constants.vbCrLf,
+                    e.ToString());
+        }
     }
 }

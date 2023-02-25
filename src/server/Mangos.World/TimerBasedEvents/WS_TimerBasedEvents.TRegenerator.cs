@@ -18,43 +18,30 @@
 
 using Mangos.Common.Enums.Global;
 using Mangos.Common.Enums.Player;
-using Mangos.World.Player;
-using Microsoft.VisualBasic.CompilerServices;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 
-namespace Mangos.World.Server;
+namespace Mangos.World.TimerBasedEvents;
 
 public partial class WS_TimerBasedEvents
 {
     public class TRegenerator : IDisposable
     {
-        private Timer RegenerationTimer;
-
-        private bool RegenerationWorking;
-
-        private readonly int operationsCount;
-
-        private int BaseMana;
-
-        private int BaseLife;
-
-        private int BaseRage;
-
-        private int BaseEnergy;
-
-        private bool _updateFlag;
-
-        private bool NextGroupUpdate;
-
-        public const int REGENERATION_TIMER = 2;
-
         public const int REGENERATION_ENERGY = 20;
 
         public const int REGENERATION_RAGE = 25;
 
+        public const int REGENERATION_TIMER = 2;
         private bool _disposedValue;
+        private bool _updateFlag;
+        private int BaseEnergy;
+        private int BaseLife;
+        private int BaseMana;
+        private int BaseRage;
+        private bool NextGroupUpdate;
+        private readonly int operationsCount;
+        private Timer RegenerationTimer;
+        private bool RegenerationWorking;
 
         public TRegenerator()
         {
@@ -64,11 +51,18 @@ public partial class WS_TimerBasedEvents
             RegenerationTimer = new Timer(Regenerate, null, 10000, 2000);
         }
 
+        void IDisposable.Dispose()
+        {
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
+        }
+
         private void Regenerate(object state)
         {
-            if (RegenerationWorking)
+            if(RegenerationWorking)
             {
-                WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "Update: Regenerator skipping update");
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(LogType.WARNING, "Update: Regenerator skipping update");
                 return;
             }
             RegenerationWorking = true;
@@ -77,10 +71,14 @@ public partial class WS_TimerBasedEvents
             {
                 try
                 {
-                    WorldServiceLocator.WorldServer.CHARACTERs_Lock.AcquireReaderLock(WorldServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
-                    foreach (var Character in WorldServiceLocator.WorldServer.CHARACTERs)
+                    WorldServiceLocator.WorldServer.CHARACTERs_Lock
+                        .AcquireReaderLock(WorldServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
+                    foreach(var Character in WorldServiceLocator.WorldServer.CHARACTERs)
                     {
-                        if (Character.Value.DEAD || Character.Value.underWaterTimer != null || Character.Value.LogoutTimer != null || Character.Value.client == null)
+                        if(Character.Value.DEAD ||
+                            (Character.Value.underWaterTimer != null) ||
+                            (Character.Value.LogoutTimer != null) ||
+                            (Character.Value.client == null))
                         {
                             continue;
                         }
@@ -90,12 +88,12 @@ public partial class WS_TimerBasedEvents
                         BaseEnergy = value.Energy.Current;
                         BaseLife = value.Life.Current;
                         _updateFlag = false;
-                        if (value.ManaType == ManaTypes.TYPE_RAGE)
+                        if(value.ManaType == ManaTypes.TYPE_RAGE)
                         {
-                            switch (value.cUnitFlags & 0x80000)
+                            switch(value.cUnitFlags & 0x80000)
                             {
                                 case 0:
-                                    if (value.Rage.Current > 0)
+                                    if(value.Rage.Current > 0)
                                     {
                                         value.Rage.Current -= 25;
                                     }
@@ -103,7 +101,7 @@ public partial class WS_TimerBasedEvents
                                     break;
 
                                 default:
-                                    if (value.RageRegenBonus != 0)
+                                    if(value.RageRegenBonus != 0)
                                     {
                                         value.Rage.Increment(value.RageRegenBonus);
                                     }
@@ -111,135 +109,167 @@ public partial class WS_TimerBasedEvents
                                     break;
                             }
                         }
-                        if (value.ManaType == ManaTypes.TYPE_ENERGY && value.Energy.Current < value.Energy.Maximum)
+                        if((value.ManaType == ManaTypes.TYPE_ENERGY) &&
+                            (value.Energy.Current < value.Energy.Maximum))
                         {
                             value.Energy.Increment(20);
                         }
-                        if (value.ManaRegen == 0)
+                        if(value.ManaRegen == 0)
                         {
                             value.UpdateManaRegen();
                         }
-                        if (value.spellCastManaRegeneration == 0)
+                        if(value.spellCastManaRegeneration == 0)
                         {
-                            if ((value.ManaType == ManaTypes.TYPE_MANA || value.Classe == Classes.CLASS_DRUID) && value.Mana.Current < value.Mana.Maximum)
+                            if(((value.ManaType == ManaTypes.TYPE_MANA) || (value.Class == Classes.CLASS_DRUID)) &&
+                                (value.Mana.Current < value.Mana.Maximum))
                             {
                                 value.Mana.Increment(value.ManaRegen * 2);
                             }
-                        }
-                        else
+                        } else
                         {
-                            if ((value.ManaType == ManaTypes.TYPE_MANA || value.Classe == Classes.CLASS_DRUID) && value.Mana.Current < value.Mana.Maximum)
+                            if(((value.ManaType == ManaTypes.TYPE_MANA) || (value.Class == Classes.CLASS_DRUID)) &&
+                                (value.Mana.Current < value.Mana.Maximum))
                             {
                                 value.Mana.Increment(value.ManaRegenInterrupt * 2);
                             }
-                            if (value.spellCastManaRegeneration < 2)
+                            if(value.spellCastManaRegeneration < 2)
                             {
                                 value.spellCastManaRegeneration = 0;
-                            }
-                            else
+                            } else
                             {
                                 value.spellCastManaRegeneration -= 2;
                             }
                         }
-                        if (value.Life.Current < value.Life.Maximum && (value.cUnitFlags & 0x80000) == 0)
+                        if((value.Life.Current < value.Life.Maximum) && ((value.cUnitFlags & 0x80000) == 0))
                         {
-                            switch (value.Classe)
+                            switch(value.Class)
                             {
                                 case Classes.CLASS_MAGE:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.1 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
-                                    break;
 
                                 case Classes.CLASS_PRIEST:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.1 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.1 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_WARLOCK:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.11 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.11 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_DRUID:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.11 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.11 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_SHAMAN:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.11 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.11 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_ROGUE:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.5 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.5 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_WARRIOR:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.8 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.8 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_HUNTER:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.25 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.25 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
                                     break;
 
                                 case Classes.CLASS_PALADIN:
-                                    value.Life.Increment((int)Math.Round(value.Spirit.Base * 0.25 * value.LifeRegenerationModifier) + value.LifeRegenBonus);
+                                    value.Life
+                                        .Increment(
+                                            ((int)Math.Round(
+                                                    value.Spirit.Base * 0.25 * value.LifeRegenerationModifier)) +
+                                                value.LifeRegenBonus);
+                                    break;
+
+                                default:
                                     break;
                             }
                         }
-                        if (BaseMana != value.Mana.Current)
+                        if(BaseMana != value.Mana.Current)
                         {
                             _updateFlag = true;
                             value.GroupUpdateFlag |= 16u;
                             value.SetUpdateFlag(23, value.Mana.Current);
                         }
-                        if ((BaseRage != value.Rage.Current) || ((value.cUnitFlags & 0x80000) == 0x80000))
+                        if((BaseRage != value.Rage.Current) || ((value.cUnitFlags & 0x80000) == 0x80000))
                         {
                             _updateFlag = true;
                             value.GroupUpdateFlag |= 16u;
                             value.SetUpdateFlag(24, value.Rage.Current);
                         }
-                        if (BaseEnergy != value.Energy.Current)
+                        if(BaseEnergy != value.Energy.Current)
                         {
                             _updateFlag = true;
                             value.GroupUpdateFlag |= 16u;
                             value.SetUpdateFlag(26, value.Energy.Current);
                         }
-                        if (BaseLife != value.Life.Current)
+                        if(BaseLife != value.Life.Current)
                         {
                             _updateFlag = true;
                             value.SetUpdateFlag(22, value.Life.Current);
                             value.GroupUpdateFlag |= 2u;
                         }
-                        if (_updateFlag)
+                        if(_updateFlag)
                         {
                             value.SendCharacterUpdate();
                         }
-                        if (value.DuelOutOfBounds != 11)
+                        if(value.DuelOutOfBounds != 11)
                         {
                             value.DuelOutOfBounds -= 2;
-                            if (value.DuelOutOfBounds == 0)
+                            if(value.DuelOutOfBounds == 0)
                             {
-                                WorldServiceLocator.WSSpells.DuelComplete(ref value.DuelPartner, ref value.client.Character);
+                                WorldServiceLocator.WSSpells
+                                    .DuelComplete(ref value.DuelPartner, ref value.client.Character);
                             }
                         }
                         value.CheckCombat();
-                        if (NextGroupUpdate)
+                        if(NextGroupUpdate)
                         {
                             value.GroupUpdate();
                         }
-                        if (value.guidsForRemoving.Count > 0)
+                        if(value.guidsForRemoving.Count > 0)
                         {
                             value.SendOutOfRangeUpdate();
                         }
                         value = null;
                     }
-                    if (WorldServiceLocator.WorldServer.CHARACTERs_Lock.IsReaderLockHeld)
+                    if(WorldServiceLocator.WorldServer.CHARACTERs_Lock.IsReaderLockHeld)
                     {
                         WorldServiceLocator.WorldServer.CHARACTERs_Lock.ReleaseReaderLock();
                     }
-                }
-                catch (Exception ex2)
+                } catch(Exception ex)
                 {
-                    ProjectData.SetProjectError(ex2);
-                    var ex = ex2;
-                    WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "Error at regenerate.{0}", Environment.NewLine + ex);
-                    ProjectData.ClearProjectError();
+                    WorldServiceLocator.WorldServer.Log
+                        .WriteLine(LogType.WARNING, "Error at regenerate.{0}", $"{Environment.NewLine}{ex}");
                 }
                 RegenerationWorking = false;
             }
@@ -247,7 +277,7 @@ public partial class WS_TimerBasedEvents
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if(!_disposedValue)
             {
                 RegenerationTimer.Dispose();
                 RegenerationTimer = null;
@@ -259,12 +289,6 @@ public partial class WS_TimerBasedEvents
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
-        }
-
-        void IDisposable.Dispose()
-        {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
         }
     }
 }

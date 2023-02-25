@@ -20,5 +20,5 @@ namespace Mangos.MySql.GetAccountInfo;
 
 public sealed class AccountInfoModel
 {
-    public required string id, sha_pass_hash, Gmlevel, Expansion;
+    public string id = null!, sha_pass_hash = null!, GmLevel = null!, Expansion = null!;
 }

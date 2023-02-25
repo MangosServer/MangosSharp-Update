@@ -32,18 +32,17 @@ public partial class WS_Loot
     public class LootStore
     {
         private readonly string Name;
-
         private readonly Dictionary<int, LootTemplate> Templates;
 
         public LootStore(string Name)
         {
+            if(string.IsNullOrEmpty(Name))
+            {
+                throw new ArgumentException($"'{nameof(Name)}' cannot be null or empty.", nameof(Name));
+            }
+
             Templates = new Dictionary<int, LootTemplate>();
             this.Name = Name;
-        }
-
-        public LootTemplate GetLoot(int Entry)
-        {
-            return Templates.ContainsKey(Entry) ? Templates[Entry] : CreateTemplate(Entry);
         }
 
         private LootTemplate CreateTemplate(int Entry)
@@ -51,8 +50,11 @@ public partial class WS_Loot
             LootTemplate newTemplate = new();
             Templates.Add(Entry, newTemplate);
             DataTable MysqlQuery = new();
-            WorldServiceLocator.WorldServer.WorldDatabase.Query(string.Format("SELECT {0}.*,conditions.type,conditions.value1, conditions.value2 FROM {0} LEFT JOIN conditions ON {0}.`condition_id`=conditions.`condition_entry` WHERE entry = {1};", Name, Entry), ref MysqlQuery);
-            if (MysqlQuery.Rows.Count == 0)
+            WorldServiceLocator.WorldServer.WorldDatabase
+                .Query(
+                    $"SELECT {Name}.*,conditions.type,conditions.value1, conditions.value2 FROM {Name} LEFT JOIN conditions ON {Name}.`condition_id`=conditions.`condition_entry` WHERE entry = {Entry};",
+                    ref MysqlQuery);
+            if(MysqlQuery.Rows.Count == 0)
             {
                 Templates[Entry] = null;
                 return null;
@@ -61,41 +63,52 @@ public partial class WS_Loot
             try
             {
                 enumerator = MysqlQuery.Rows.GetEnumerator();
-                while (enumerator.MoveNext())
+                while(enumerator.MoveNext())
                 {
-                    DataRow row = (DataRow)enumerator.Current;
+                    var row = (DataRow)enumerator.Current;
                     var Item = row.As<int>("item");
                     var ChanceOrQuestChance = row.As<float>("ChanceOrQuestChance");
                     var GroupID = row.As<byte>("groupid");
                     var MinCountOrRef = row.As<int>("mincountOrRef");
                     var MaxCount = row.As<byte>("maxcount");
                     var LootCondition = ConditionType.CONDITION_NONE;
-                    if (!Information.IsDBNull(RuntimeHelpers.GetObjectValue(row["type"])))
+                    if(!Information.IsDBNull(RuntimeHelpers.GetObjectValue(row["type"])))
                     {
                         LootCondition = (ConditionType)row.As<int>("type");
                     }
                     var ConditionValue1 = 0;
-                    if (!Information.IsDBNull(RuntimeHelpers.GetObjectValue(row["value1"])))
+                    if(!Information.IsDBNull(RuntimeHelpers.GetObjectValue(row["value1"])))
                     {
                         ConditionValue1 = row.As<int>("value1");
                     }
                     var ConditionValue2 = 0;
-                    if (!Information.IsDBNull(RuntimeHelpers.GetObjectValue(row["value2"])))
+                    if(!Information.IsDBNull(RuntimeHelpers.GetObjectValue(row["value2"])))
                     {
                         ConditionValue2 = row.As<int>("value2");
                     }
-                    LootStoreItem newItem = new(Item, Math.Abs(ChanceOrQuestChance), GroupID, MinCountOrRef, MaxCount, LootCondition, ConditionValue1, ConditionValue2, ChanceOrQuestChance < 0f);
+                    LootStoreItem newItem = new(
+                        Item,
+                        Math.Abs(ChanceOrQuestChance),
+                        GroupID,
+                        MinCountOrRef,
+                        MaxCount,
+                        LootCondition,
+                        ConditionValue1,
+                        ConditionValue2,
+                        ChanceOrQuestChance < 0f);
                     newTemplate.AddItem(ref newItem);
                 }
-            }
-            finally
+            } finally
             {
-                if (enumerator is IDisposable)
+                if(enumerator is IDisposable)
                 {
-                    (enumerator as IDisposable).Dispose();
+                    (enumerator as IDisposable)?.Dispose();
                 }
             }
             return newTemplate;
         }
+
+        public LootTemplate GetLoot(int Entry)
+        { return Templates.ContainsKey(Entry) ? Templates[Entry] : CreateTemplate(Entry); }
     }
 }

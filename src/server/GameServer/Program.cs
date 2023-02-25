@@ -44,7 +44,7 @@ var legacyWorldCluster = container.Resolve<LegacyWorldCluster>();
 WorldServiceLocator.Container = container;
 var worldServer = container.Resolve<WorldServer>();
 
-logger.Trace(@" __  __      _  _  ___  ___  ___               ");
+logger.Trace("  __  __      _  _  ___  ___  ___               ");
 logger.Trace(@"|  \/  |__ _| \| |/ __|/ _ \/ __|   We Love    ");
 logger.Trace(@"| |\/| / _` | .` | (_ | (_) \__ \   Vanilla Wow");
 logger.Trace(@"|_|  |_\__,_|_|\_|\___|\___/|___/              ");
@@ -58,4 +58,9 @@ logger.Information("Starting legacy world server");
 await worldServer.StartAsync();
 
 logger.Information("Starting game tcp server");
-await tcpServer.RunAsync(configuration.Cluster.ClusterServerEndpoint);
+var clusterEndpoint = configuration!.Cluster?.ClusterServerEndpoint!;
+
+if(clusterEndpoint != null)
+{
+    await tcpServer!.RunAsync(configuration!.Cluster?.ClusterServerEndpoint!);
+}

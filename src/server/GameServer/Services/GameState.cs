@@ -26,6 +26,11 @@ internal sealed class GameState : IGameState
 
     public void Transaction(Action<Game> transaction)
     {
+        if (transaction is null)
+        {
+            throw new ArgumentNullException(nameof(transaction));
+        }
+
         lock (world)
         {
             transaction(world);

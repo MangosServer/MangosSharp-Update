@@ -22,8 +22,8 @@ namespace Mangos.Cluster.Network;
 
 public class WorldInfo
 {
-    public int Latency;
-    public DateTime Started = DateTime.Now;
     public float CpuUsage;
+    public int Latency;
     public ulong MemoryUsage;
+    public DateTime Started = DateTime.Now;
 }

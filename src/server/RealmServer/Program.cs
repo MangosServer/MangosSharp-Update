@@ -22,7 +22,7 @@ using Mangos.Logging;
 using Mangos.MySql;
 using Mangos.Tcp;
 using RealmServer;
-
+#nullable disable
 Console.Title = "Realm server";
 
 var builder = new ContainerBuilder();
@@ -37,7 +37,7 @@ var configuration = container.Resolve<MangosConfiguration>();
 var logger = container.Resolve<IMangosLogger>();
 var tcpServer = container.Resolve<TcpServer>();
 
-logger.Trace(@" __  __      _  _  ___  ___  ___               ");
+logger.Trace(" __  __      _  _  ___  ___  ___               ");
 logger.Trace(@"|  \/  |__ _| \| |/ __|/ _ \/ __|   We Love    ");
 logger.Trace(@"| |\/| / _` | .` | (_ | (_) \__ \   Vanilla Wow");
 logger.Trace(@"|_|  |_\__,_|_|\_|\___|\___/|___/              ");

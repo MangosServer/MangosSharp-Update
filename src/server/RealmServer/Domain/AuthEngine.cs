@@ -72,12 +72,10 @@ internal sealed class AuthEngine
 
     public AuthEngine()
     {
-        var buffer1 = new byte[] { 7 };
-        g = buffer1;
+        g = (new byte[] { 7 });
         N = new byte[] { 137, 75, 100, 94, 137, 225, 83, 91, 189, 173, 91, 139, 41, 6, 80, 83, 8, 1, 177, 142, 191, 191, 94, 143, 171, 60, 130, 135, 42, 62, 155, 183 };
         Salt = new byte[] { 173, 208, 58, 49, 210, 113, 20, 70, 117, 242, 112, 126, 80, 38, 182, 210, 241, 134, 89, 153, 118, 2, 80, 170, 185, 69, 224, 158, 221, 42, 163, 69 };
-        var buffer2 = new byte[] { 3 };
-        _k = buffer2;
+        _k = (new byte[] { 3 });
         PublicB = new byte[32];
         _b = new byte[20];
     }
@@ -103,22 +101,20 @@ internal sealed class AuthEngine
 
     private void CalculateK()
     {
-        SHA1Managed algorithm1 = new();
         ArrayList list1 = new();
         list1 = Split(_s);
-        list1[0] = algorithm1.ComputeHash((byte[])list1[0]);
-        list1[1] = algorithm1.ComputeHash((byte[])list1[1]);
+        list1[0] = SHA1.HashData((byte[])list1[0]);
+        list1[1] = SHA1.HashData((byte[])list1[1]);
         SsHash = Combine((byte[])list1[0], (byte[])list1[1]);
     }
 
     public void CalculateM2(byte[] m1Loc)
     {
-        SHA1Managed algorithm1 = new();
-        var buffer1 = new byte[(_a.Length + m1Loc.Length + SsHash.Length)];
+        var buffer1 = new byte[_a.Length + m1Loc.Length + SsHash.Length];
         Buffer.BlockCopy(_a, 0, buffer1, 0, _a.Length);
         Buffer.BlockCopy(m1Loc, 0, buffer1, _a.Length, m1Loc.Length);
         Buffer.BlockCopy(SsHash, 0, buffer1, _a.Length + m1Loc.Length, SsHash.Length);
-        M2 = algorithm1.ComputeHash(buffer1);
+        M2 = SHA1.HashData(buffer1);
     }
 
     private void CalculateS()
@@ -140,11 +136,10 @@ internal sealed class AuthEngine
     public void CalculateU(byte[] a)
     {
         _a = a;
-        SHA1Managed algorithm1 = new();
-        var buffer1 = new byte[(a.Length + PublicB.Length)];
+        var buffer1 = new byte[a.Length + PublicB.Length];
         Buffer.BlockCopy(a, 0, buffer1, 0, a.Length);
         Buffer.BlockCopy(PublicB, 0, buffer1, a.Length, PublicB.Length);
-        _u = algorithm1.ComputeHash(buffer1);
+        _u = SHA1.HashData(buffer1);
         Array.Reverse(_u);
         _bnu = new BigInteger(_u, isUnsigned: true, isBigEndian: true);
         Array.Reverse(_u);
@@ -163,15 +158,14 @@ internal sealed class AuthEngine
     public void CalculateX(byte[] username, byte[] pwHash)
     {
         _username = username;
-        SHA1Managed algorithm1 = new();
         // Dim encoding1 As New UTF7Encoding
         byte[] buffer3;
         buffer3 = new byte[20];
         byte[] buffer5;
-        buffer5 = new byte[(Salt.Length + 20)];
+        buffer5 = new byte[Salt.Length + 20];
         Buffer.BlockCopy(pwHash, 0, buffer5, Salt.Length, 20);
         Buffer.BlockCopy(Salt, 0, buffer5, 0, Salt.Length);
-        buffer3 = algorithm1.ComputeHash(buffer5);
+        buffer3 = SHA1.HashData(buffer5);
         Array.Reverse(buffer3);
         _bNx = new BigInteger(buffer3, isUnsigned: true, isBigEndian: true);
         Array.Reverse(g);
@@ -188,7 +182,6 @@ internal sealed class AuthEngine
 
     public void CalculateM1()
     {
-        SHA1Managed algorithm1 = new();
         byte[] nHash;
         nHash = new byte[20];
         byte[] gHash;
@@ -197,9 +190,9 @@ internal sealed class AuthEngine
         ngHash = new byte[20];
         byte[] userHash;
         userHash = new byte[20];
-        nHash = algorithm1.ComputeHash(N);
-        gHash = algorithm1.ComputeHash(g);
-        userHash = algorithm1.ComputeHash(_username);
+        nHash = SHA1.HashData(N);
+        gHash = SHA1.HashData(g);
+        userHash = SHA1.HashData(_username);
         for (var i = 0; i <= 19; i++)
         {
             ngHash[i] = (byte)(nHash[i] ^ gHash[i]);
@@ -210,7 +203,7 @@ internal sealed class AuthEngine
         temp = Concat(temp, _a);
         temp = Concat(temp, PublicB);
         temp = Concat(temp, SsHash);
-        M1 = algorithm1.ComputeHash(temp);
+        M1 = SHA1.HashData(temp);
     }
 
     // Public Sub CalculateM1_Full()
@@ -272,7 +265,7 @@ internal sealed class AuthEngine
             return null;
         }
 
-        var CombineBuffer = new byte[(Bytes1.Length + Bytes2.Length)];
+        var CombineBuffer = new byte[Bytes1.Length + Bytes2.Length];
         var Counter = 0;
         for (int i = 0, loopTo = CombineBuffer.Length - 1; i <= loopTo; i += 2)
         {
@@ -292,7 +285,7 @@ internal sealed class AuthEngine
 
     public byte[] Concat(byte[] Buffer1, byte[] Buffer2)
     {
-        var ConcatBuffer = new byte[(Buffer1.Length + Buffer2.Length)];
+        var ConcatBuffer = new byte[Buffer1.Length + Buffer2.Length];
         Array.Copy(Buffer1, ConcatBuffer, Buffer1.Length);
         Array.Copy(Buffer2, 0, ConcatBuffer, Buffer1.Length, Buffer2.Length);
         return ConcatBuffer;

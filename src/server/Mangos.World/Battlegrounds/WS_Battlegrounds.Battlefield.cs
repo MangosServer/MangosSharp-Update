@@ -17,7 +17,6 @@
 //
 
 using Mangos.Common.Enums.Global;
-using Mangos.World.Globals;
 using Mangos.World.Player;
 using System;
 using System.Collections.Generic;
@@ -28,17 +27,16 @@ public partial class WS_Battlegrounds
 {
     public class Battlefield : IDisposable
     {
-        public List<WS_PlayerData.CharacterObject> MembersTeam1;
-
-        public List<WS_PlayerData.CharacterObject> MembersTeam2;
+        private bool _disposedValue;
 
         public int ID;
 
         public uint Map;
 
         public BattlefieldMapType MapType;
+        public List<WS_PlayerData.CharacterObject> MembersTeam1;
 
-        private bool _disposedValue;
+        public List<WS_PlayerData.CharacterObject> MembersTeam2;
 
         public Battlefield(BattlefieldMapType rMapType, uint rMap)
         {
@@ -47,34 +45,24 @@ public partial class WS_Battlegrounds
             WorldServiceLocator.WSBattlegrounds.BATTLEFIELDs.Add(ID, this);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposedValue)
-            {
-                WorldServiceLocator.WSBattlegrounds.BATTLEFIELDs.Remove(ID);
-            }
-            _disposedValue = true;
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
         void IDisposable.Dispose()
         {
             //ILSpy generated this explicit interface implementation from .override directive in Dispose
             Dispose();
         }
 
-        public void Update(object State)
+        protected virtual void Dispose(bool disposing)
         {
+            if(!_disposedValue)
+            {
+                WorldServiceLocator.WSBattlegrounds.BATTLEFIELDs.Remove(ID);
+            }
+            _disposedValue = true;
         }
 
-        public void Broadcast(Packets.PacketClass p)
+        public void Broadcast(Packets.Packets.PacketClass p)
         {
-            if (p is null)
+            if(p is null)
             {
                 throw new ArgumentNullException(nameof(p));
             }
@@ -83,31 +71,40 @@ public partial class WS_Battlegrounds
             BroadcastTeam2(p);
         }
 
-        public void BroadcastTeam1(Packets.PacketClass p)
+        public void BroadcastTeam1(Packets.Packets.PacketClass p)
         {
-            if (p is null)
+            if(p is null)
             {
                 throw new ArgumentNullException(nameof(p));
             }
 
-            foreach (var objCharacter in MembersTeam1.ToArray())
+            foreach(var objCharacter in MembersTeam1.ToArray())
             {
                 objCharacter.client.SendMultiplyPackets(ref p);
             }
         }
 
-        public void BroadcastTeam2(Packets.PacketClass p)
+        public void BroadcastTeam2(Packets.Packets.PacketClass p)
         {
-            if (p is null)
+            if(p is null)
             {
                 throw new ArgumentNullException(nameof(p));
             }
 
-            var array = MembersTeam2.ToArray();
-            foreach (var objCharacter in array)
+            foreach(var objCharacter in MembersTeam2.ToArray())
             {
                 objCharacter.client.SendMultiplyPackets(ref p);
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        public void Update(object State)
+        {
         }
     }
 }

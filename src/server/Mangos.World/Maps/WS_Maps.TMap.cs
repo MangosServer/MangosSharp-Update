@@ -20,7 +20,6 @@ using Mangos.Common.Enums.Global;
 using Mangos.Common.Enums.Map;
 using Mangos.DataStores;
 using Microsoft.VisualBasic;
-using Microsoft.VisualBasic.CompilerServices;
 using System;
 using System.IO;
 
@@ -30,70 +29,31 @@ public partial class WS_Maps
 {
     public class TMap : IDisposable
     {
+        private bool _disposedValue;
         public int ID;
-
-        public MapTypes Type;
 
         public string Name;
 
-        public bool[,] TileUsed;
-
         public TMapTile[,] Tiles;
 
-        private bool _disposedValue;
+        public bool[,] TileUsed;
 
-        public bool IsDungeon => Type is MapTypes.MAP_INSTANCE or MapTypes.MAP_RAID;
-
-        public bool IsRaid => Type == MapTypes.MAP_RAID;
-
-        public bool IsBattleGround => Type == MapTypes.MAP_BATTLEGROUND;
-
-        public int ResetTime
-        {
-            get
-            {
-                checked
-                {
-                    switch (Type)
-                    {
-                        case MapTypes.MAP_BATTLEGROUND:
-                            return WorldServiceLocator.GlobalConstants.DEFAULT_BATTLEFIELD_EXPIRE_TIME;
-
-                        case MapTypes.MAP_INSTANCE:
-                        case MapTypes.MAP_RAID:
-                            switch (ID)
-                            {
-                                case 249:
-                                    return (int)Math.Round(WorldServiceLocator.Functions.GetNextDate(5, 3).Subtract(DateAndTime.Now).TotalSeconds);
-
-                                case 309:
-                                case 509:
-                                    return (int)Math.Round(WorldServiceLocator.Functions.GetNextDate(3, 3).Subtract(DateAndTime.Now).TotalSeconds);
-
-                                case 409:
-                                case 469:
-                                case 531:
-                                case 533:
-                                    return (int)Math.Round(WorldServiceLocator.Functions.GetNextDay(DayOfWeek.Tuesday, 3).Subtract(DateAndTime.Now).TotalSeconds);
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                    return WorldServiceLocator.GlobalConstants.DEFAULT_INSTANCE_EXPIRE_TIME;
-                }
-            }
-        }
+        public MapTypes Type;
 
         public TMap(int Map, DataStore mapDataStore)
         {
+            if(mapDataStore is null)
+            {
+                throw new ArgumentNullException(nameof(mapDataStore));
+            }
+
             Type = MapTypes.MAP_COMMON;
-            Name = "";
-            TileUsed = new bool[64, 64];
-            Tiles = new TMapTile[64, 64];
+            Name = string.Empty;
+            TileUsed = (new bool[64, 64]);
+            Tiles = (new TMapTile[64, 64]);
             checked
             {
-                if (WorldServiceLocator.WSMaps.Maps.ContainsKey((uint)Map))
+                if(WorldServiceLocator.WSMaps.Maps.ContainsKey((uint)Map))
                 {
                     return;
                 }
@@ -106,16 +66,14 @@ public partial class WS_Maps
                     {
                         TileUsed[x, y] = false;
                         y++;
-                    }
-                    while (y <= 63);
+                    } while (y <= 63);
                     x++;
-                }
-                while (x <= 63);
+                } while (x <= 63);
                 try
                 {
-                    for (var i = 0; i <= mapDataStore.Rows - 1; i++)
+                    for(var i = 0; i <= (mapDataStore.Rows - 1); i++)
                     {
-                        if (mapDataStore.ReadInt(i, 0) == Map)
+                        if(mapDataStore.ReadInt(i, 0) == Map)
                         {
                             ID = Map;
                             Type = (MapTypes)mapDataStore.ReadInt(i, 2);
@@ -123,24 +81,28 @@ public partial class WS_Maps
                             break;
                         }
                     }
-                    WorldServiceLocator.WorldServer.Log.WriteLine(LogType.INFORMATION, "DBC: 1 Map initialized.", mapDataStore.Rows - 1);
-                }
-                catch (DirectoryNotFoundException ex)
+                    WorldServiceLocator.WorldServer.Log
+                        .WriteLine(LogType.INFORMATION, "DBC: 1 Map initialized.", mapDataStore.Rows - 1);
+                } catch(DirectoryNotFoundException ex)
                 {
-                    ProjectData.SetProjectError(ex);
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("DBC File : Map missing.");
+                    Console.WriteLine("DBC File : Map missing.", ex);
                     Console.ForegroundColor = ConsoleColor.Gray;
-                    ProjectData.ClearProjectError();
                 }
             }
+        }
+
+        void IDisposable.Dispose()
+        {
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
         }
 
         protected virtual void Dispose(bool disposing)
         {
             checked
             {
-                if (!_disposedValue)
+                if(!_disposedValue)
                 {
                     var i = 0;
                     do
@@ -150,11 +112,9 @@ public partial class WS_Maps
                         {
                             Tiles[i, j]?.Dispose();
                             j++;
-                        }
-                        while (j <= 63);
+                        } while (j <= 63);
                         i++;
-                    }
-                    while (i <= 63);
+                    } while (i <= 63);
                     WorldServiceLocator.WSMaps.Maps.Remove((uint)ID);
                 }
                 _disposedValue = true;
@@ -167,10 +127,56 @@ public partial class WS_Maps
             GC.SuppressFinalize(this);
         }
 
-        void IDisposable.Dispose()
+        public bool IsBattleGround => Type == MapTypes.MAP_BATTLEGROUND;
+
+        public bool IsDungeon => Type is MapTypes.MAP_INSTANCE or MapTypes.MAP_RAID;
+
+        public bool IsRaid => Type == MapTypes.MAP_RAID;
+
+        public int ResetTime
         {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
+            get
+            {
+                checked
+                {
+                    switch(Type)
+                    {
+                        case MapTypes.MAP_BATTLEGROUND:
+                            return WorldServiceLocator.GlobalConstants.DEFAULT_BATTLEFIELD_EXPIRE_TIME;
+
+                        case MapTypes.MAP_INSTANCE:
+                        case MapTypes.MAP_RAID:
+                            switch(ID)
+                            {
+                                case 249:
+                                    return (int)Math.Round(
+                                        WorldServiceLocator.Functions.GetNextDate(5, 3).Subtract(DateAndTime.Now)
+                                            .TotalSeconds);
+
+                                case 309:
+                                case 509:
+                                    return (int)Math.Round(
+                                        WorldServiceLocator.Functions.GetNextDate(3, 3).Subtract(DateAndTime.Now)
+                                            .TotalSeconds);
+
+                                case 409:
+                                case 469:
+                                case 531:
+                                case 533:
+                                    return (int)Math.Round(
+                                        WorldServiceLocator.Functions
+                                            .GetNextDay(DayOfWeek.Tuesday, 3)
+                                            .Subtract(DateAndTime.Now)
+                                            .TotalSeconds);
+                            }
+                            break;
+
+                        default:
+                            break;
+                    }
+                    return WorldServiceLocator.GlobalConstants.DEFAULT_INSTANCE_EXPIRE_TIME;
+                }
+            }
         }
     }
 }

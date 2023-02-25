@@ -22,12 +22,17 @@ namespace GameServer.Responses;
 
 internal sealed class SMSG_PONG : IResponseMessage
 {
-    public uint Payload { get; init; }
+    public void Write(PacketWriter writer)
+    {
+        if (writer is null)
+        {
+            throw new ArgumentNullException(nameof(writer));
+        }
+
+        writer.UInt32(Payload);
+    }
 
     public Opcodes Opcode => Opcodes.SMSG_PONG;
 
-    public void Write(PacketWriter writer)
-    {
-        writer.UInt32(Payload);
-    }
+    public uint Payload { get; init; }
 }

@@ -20,8 +20,8 @@ namespace Mangos.MySql.GetRealmList;
 
 public sealed class RealmListModel
 {
-    public required string address, name, port;
-    public required byte timezone, icon, realmflags;
-    public required float population;
-    public required int numchars;
+    public string address = null!, name = null!, port = null!;
+    public byte timezone, icon, realmflags;
+    public float population;
+    public int numchars;
 }

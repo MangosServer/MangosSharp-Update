@@ -29,54 +29,82 @@ namespace GameServer.Network;
 internal sealed class GameTcpConnection : ITcpConnection
 {
     private const int MAX_PACKET_LENGTH = 10000;
-
-    private readonly ClientClass legacyClientClass;
     private readonly IHandlerDispatcher[] dispatchers;
-
+    private readonly ClientClass legacyClientClass;
     private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
 
     public GameTcpConnection(ClientClass legacyClientClass, IEnumerable<IHandlerDispatcher> dispatchers)
     {
-        this.legacyClientClass = legacyClientClass;
+        if (dispatchers is null)
+        {
+            throw new ArgumentNullException(nameof(dispatchers));
+        }
+
+        this.legacyClientClass = legacyClientClass ?? throw new ArgumentNullException(nameof(legacyClientClass));
 
         this.dispatchers = dispatchers.ToArray();
     }
 
-    public async Task ExecuteAsync(Socket socket, CancellationToken cancellationToken)
+    private void DecodePacketHeader(Span<byte> data)
     {
-        legacyClientClass.Socket = socket;
-        await legacyClientClass.OnConnectAsync();
-
-        while (!cancellationToken.IsCancellationRequested)
+        if(!legacyClientClass.Client.PacketEncryption.IsEncryptionEnabled)
         {
-            await WaitForNextPacket(socket, cancellationToken);
-            await HandlePacketAsync(socket, cancellationToken);
+            return;
+        }
+
+        var key = legacyClientClass.Client.PacketEncryption.Key;
+        if ((key == null) || (key.Length == 0))
+        {
+            return;
+        }
+
+        var hash = legacyClientClass.Client.PacketEncryption.Hash;
+        if ((hash == null) || (hash.Length == 0))
+        {
+            return;
+        }
+
+        for (var i = 0; i < 6; i++)
+        {
+            var tmp = data[i];
+            data[i] = (byte)(hash[key[1]] ^ ((256 + data[i] - key[0]) % 256));
+            key[0] = tmp;
+            key[1] = (byte)((key[1] + 1) % 40);
         }
     }
 
-    private async Task HandlePacketAsync(Socket socket, CancellationToken cancellationToken)
+    private async Task ExecuteHandlerAsync(
+        IHandlerDispatcher dispatcher,
+        Memory<byte> body,
+        Socket socket,
+        CancellationToken cancellationToken)
     {
-        using var memoryOwner = memoryPool.Rent(MAX_PACKET_LENGTH);
-        var header = await ReadPacketHeaderAsync(socket, memoryOwner.Memory, cancellationToken);
-        var body = await ReadPacketBodyAsync(socket, memoryOwner.Memory, cancellationToken);
-
-        var opcode = (Opcodes)BinaryPrimitives.ReadUInt32LittleEndian(header.Span.Slice(2));
-
-        var dispatcher = dispatchers.FirstOrDefault(x => x.Opcode == opcode);
-        if (dispatcher != null)
+        if (dispatcher is null)
         {
-            await ExecuteHandlerAsync(dispatcher, body, socket, cancellationToken);
+            throw new ArgumentNullException(nameof(dispatcher));
         }
-        else
-        {
-            ExecuteLegacyHandler(memoryOwner.Memory.Slice(0, header.Length + body.Length));
-        }
-    }
 
-    private async Task ExecuteHandlerAsync(IHandlerDispatcher dispatcher, Memory<byte> body, Socket socket, CancellationToken cancellationToken)
-    {
-        using var result = await dispatcher.ExectueAsync(new PacketReader(body));
+        if (socket is null)
+        {
+            throw new ArgumentNullException(nameof(socket));
+        }
+        if (dispatcher == null)
+        {
+            return;
+        }
+
+        using var result = await dispatcher.ExecuteAsync(new PacketReader(body));
+        if (result == null)
+        {
+            return;
+        }
+
         using var memoryOwner = memoryPool.Rent(MAX_PACKET_LENGTH);
+        if (memoryOwner == null)
+        {
+            return;
+        }
+
         foreach (var response in result.GetResponseMessages())
         {
             await SendAsync(socket, memoryOwner.Memory, response, cancellationToken);
@@ -89,33 +117,157 @@ internal sealed class GameTcpConnection : ITcpConnection
         legacyClientClass.OnPacket(legacyPacket);
     }
 
-    private void DecodePacketHeader(Span<byte> data)
+    private async Task HandlePacketAsync(Socket socket, CancellationToken cancellationToken)
     {
-        if (!legacyClientClass.Client.PacketEncryption.IsEncryptionEnabled)
+        if (socket is null)
+        {
+            throw new ArgumentNullException(nameof(socket));
+        }
+
+        using var memoryOwner = memoryPool.Rent(MAX_PACKET_LENGTH);
+        if (memoryOwner == null)
         {
             return;
         }
 
-        var key = legacyClientClass.Client.PacketEncryption.Key;
-        var hash = legacyClientClass.Client.PacketEncryption.Hash;
-        for (var i = 0; i < 6; i++)
+        var header = await ReadPacketHeaderAsync(socket, memoryOwner.Memory, cancellationToken);
+        var body = await ReadPacketBodyAsync(socket, memoryOwner.Memory, cancellationToken);
+
+        var opcode = (Opcodes)BinaryPrimitives.ReadUInt32LittleEndian(header.Span[2..]);
+
+        var dispatcher = Array.Find(dispatchers, x => x.Opcode == opcode);
+        if(dispatcher != null)
         {
-            var tmp = data[i];
-            data[i] = (byte)(hash[key[1]] ^ (256 + data[i] - key[0]) % 256);
-            key[0] = tmp;
-            key[1] = (byte)((key[1] + 1) % 40);
+            await ExecuteHandlerAsync(dispatcher, body, socket, cancellationToken);
+        } else
+        {
+            ExecuteLegacyHandler(memoryOwner.Memory[..(header.Length + body.Length)]);
         }
+    }
+
+    private async ValueTask ReadAsync(Socket socket, Memory<byte> buffer, CancellationToken cancellationToken)
+    {
+        if (socket is null)
+        {
+            throw new ArgumentNullException(nameof(socket));
+        }
+
+        if (buffer.Length == 0)
+        {
+            return;
+        }
+
+        var length = await socket.ReceiveAsync(buffer, cancellationToken);
+        if(length != buffer.Length)
+        {
+            throw new NotImplementedException("Invalid number of bytes was readed from socket");
+        }
+    }
+
+    private async ValueTask<Memory<byte>> ReadPacketBodyAsync(
+        Socket socket,
+        Memory<byte> buffer,
+        CancellationToken cancellationToken)
+    {
+        if (socket is null)
+        {
+            throw new ArgumentNullException(nameof(socket));
+        }
+
+        var length = BinaryPrimitives.ReadUInt16BigEndian(buffer.Span) - 4;
+        var body = buffer.Slice(6, length);
+        await ReadAsync(socket, body, cancellationToken);
+        return body;
+    }
+
+    private async ValueTask<Memory<byte>> ReadPacketHeaderAsync(
+        Socket socket,
+        Memory<byte> buffer,
+        CancellationToken cancellationToken)
+    {
+        if (socket == null)
+        {
+            return Memory<byte>.Empty;
+        }
+
+        var header = buffer[..6];
+        await ReadAsync(socket, header, cancellationToken);
+        DecodePacketHeader(header.Span);
+        return header;
+    }
+
+    private async ValueTask SendAsync(Socket socket, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+    {
+        if (socket == null)
+        {
+            return;
+        }
+
+        var length = await socket.SendAsync(buffer, cancellationToken);
+        if(length != buffer.Length)
+        {
+            throw new NotImplementedException("Invalid number of bytes was sended to socket");
+        }
+    }
+
+    private async ValueTask SendAsync(
+        Socket socket,
+        Memory<byte> buffer,
+        IResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (socket is null)
+        {
+            throw new ArgumentNullException(nameof(socket));
+        }
+
+        if (response is null)
+        {
+            throw new ArgumentNullException(nameof(response));
+        }
+
+        var packetWriter = new PacketWriter(buffer, response.Opcode);
+        response.Write(packetWriter);
+        var packet = packetWriter.ToPacket();
+        EncodePacketHeader(packet.Span);
+        await SendAsync(socket, packet, cancellationToken);
+    }
+
+    private async ValueTask WaitForNextPacketAsync(Socket socket, CancellationToken cancellationToken)
+    {
+        if (socket is null)
+        {
+            throw new ArgumentNullException(nameof(socket));
+        }
+
+        var array = Array.Empty<byte>();
+        if ((array == null) || (array.Length == 0))
+        {
+            return;
+        }
+
+        await socket.ReceiveAsync(array, cancellationToken);
     }
 
     public void EncodePacketHeader(Span<byte> data)
     {
-        if (!legacyClientClass.Client.PacketEncryption.IsEncryptionEnabled)
+        if(!legacyClientClass.Client.PacketEncryption.IsEncryptionEnabled)
         {
             return;
         }
 
         var key = legacyClientClass.Client.PacketEncryption.Key;
+        if ((key == null) || (key.Length == 0))
+        {
+            return;
+        }
+
         var hash = legacyClientClass.Client.PacketEncryption.Hash;
+        if ((hash == null) || (hash.Length == 0))
+        {
+            return;
+        }
+
         for (var i = 0; i < 4; i++)
         {
             data[i] = (byte)(((hash[key[3]] ^ data[i]) + key[2]) % 256);
@@ -124,56 +276,20 @@ internal sealed class GameTcpConnection : ITcpConnection
         }
     }
 
-    private async ValueTask WaitForNextPacket(Socket socket, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(Socket socket, CancellationToken cancellationToken)
     {
-        await socket.ReceiveAsync(Array.Empty<byte>(), cancellationToken);
-    }
-
-    private async ValueTask<Memory<byte>> ReadPacketHeaderAsync(Socket socket, Memory<byte> buffer, CancellationToken cancellationToken)
-    {
-        var header = buffer.Slice(0, 6);
-        await ReadAsync(socket, header, cancellationToken);
-        DecodePacketHeader(header.Span);
-        return header;
-    }
-
-    private async ValueTask<Memory<byte>> ReadPacketBodyAsync(Socket socket, Memory<byte> buffer, CancellationToken cancellationToken)
-    {
-        var length = BinaryPrimitives.ReadUInt16BigEndian(buffer.Span) - 4;
-        var body = buffer.Slice(6, length);
-        await ReadAsync(socket, body, cancellationToken);
-        return body;
-    }
-
-    private async ValueTask SendAsync(Socket socket, Memory<byte> buffer, IResponseMessage response, CancellationToken cancellationToken)
-    {
-        var packetWriter = new PacketWriter(buffer, response.Opcode);
-        response.Write(packetWriter);
-        var packet = packetWriter.ToPacket();
-        EncodePacketHeader(packet.Span);
-        await SendAsync(socket, packet, cancellationToken);
-    }
-
-    private async ValueTask ReadAsync(Socket socket, Memory<byte> buffer, CancellationToken cancellationToken)
-    {
-        if (buffer.Length == 0)
+        if (socket is null)
         {
-            return;
+            throw new ArgumentNullException(nameof(socket));
         }
 
-        var length = await socket.ReceiveAsync(buffer, cancellationToken);
-        if (length != buffer.Length)
-        {
-            throw new NotImplementedException("Invalid number of bytes was readed from socket");
-        }
-    }
+        legacyClientClass.Socket = socket;
+        await legacyClientClass.OnConnectAsync();
 
-    private async ValueTask SendAsync(Socket socket, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
-    {
-        var length = await socket.SendAsync(buffer, cancellationToken);
-        if (length != buffer.Length)
+        while(!cancellationToken.IsCancellationRequested)
         {
-            throw new NotImplementedException("Invalid number of bytes was sended to socket");
+            await WaitForNextPacketAsync(socket, cancellationToken);
+            await HandlePacketAsync(socket, cancellationToken);
         }
     }
 }

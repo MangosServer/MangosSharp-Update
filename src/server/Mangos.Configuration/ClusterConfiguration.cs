@@ -20,14 +20,15 @@ namespace Mangos.Configuration;
 
 public sealed class ClusterConfiguration
 {
-    public required string ClusterServerEndpoint { get; init; }
 
-    public required string ClusterListenAddress { get; init; }
-    public required int ClusterListenPort { get; init; }
+    public string? ClusterServerEndpoint { get; init; }
 
-    public required int ServerPlayerLimit { get; init; }
+    public string? ClusterListenAddress { get; init; }
+    public int ClusterListenPort { get; init; }
 
-    public required string AccountDatabase { get; init; }
-    public required string CharacterDatabase { get; init; }
-    public required string WorldDatabase { get; init; }
+    public int ServerPlayerLimit { get; init; }
+
+    public string? AccountDatabase { get; init; }
+    public string? CharacterDatabase { get; init; }
+    public string? WorldDatabase { get; init; }
 }

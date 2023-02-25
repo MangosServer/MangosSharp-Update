@@ -23,5 +23,5 @@ namespace GameServer.Handlers;
 
 internal interface IHandler<TRequest> where TRequest : IRequestMessage<TRequest>
 {
-    Task<HandlerResult> ExectueAsync(TRequest request);
+    Task<HandlerResult> ExecuteAsync(TRequest request);
 }

@@ -25,27 +25,16 @@ namespace Mangos.Cluster.Network;
 public class WcNetwork
 {
     private readonly ClusterServiceLocator _clusterServiceLocator;
-
-    public WcNetwork(ClusterServiceLocator clusterServiceLocator)
-    {
-        _clusterServiceLocator = clusterServiceLocator;
-    }
-
-    public WorldServerClass WorldServer => _clusterServiceLocator.WorldServerClass;
-
-    private readonly int _lastPing;
-
-    public int MsTime()
-    {
-        // DONE: Calculate the clusters timeGetTime("")
-        return _clusterServiceLocator.NativeMethods.timeGetTime("") - _lastPing;
-    }
+    private readonly int _lastPing = 0;
 
     public Dictionary<uint, DateTime> LastConnections = new();
 
+    public WcNetwork(ClusterServiceLocator clusterServiceLocator)
+    { _clusterServiceLocator = clusterServiceLocator; }
+
     public uint Ip2Int(string ip)
     {
-        if (ip.Split(".").Length != 4)
+        if(ip.Split(".").Length != 4)
         {
             return 0U;
         }
@@ -58,10 +47,17 @@ public class WcNetwork
             ipBytes[2] = Conversions.ToByte(ip.Split(".")[1]);
             ipBytes[3] = Conversions.ToByte(ip.Split(".")[0]);
             return BitConverter.ToUInt32(ipBytes, 0);
-        }
-        catch
+        } catch
         {
             return 0U;
         }
     }
+
+    public int MsTime()
+    {
+        // DONE: Calculate the clusters timeGetTime("")
+        return _clusterServiceLocator.NativeMethods.timeGetTime(string.Empty) - _lastPing;
+    }
+
+    public WorldServerClass WorldServer => _clusterServiceLocator.WorldServerClass;
 }

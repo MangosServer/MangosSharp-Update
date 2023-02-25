@@ -18,69 +18,63 @@
 
 using Mangos.Common.Enums.Global;
 using Mangos.World.Network;
-using Microsoft.VisualBasic.CompilerServices;
 using System;
 using System.Text;
 
-namespace Mangos.World.Globals;
+namespace Mangos.World.Packets;
 
 public partial class Packets
 {
     public void DumpPacket(byte[] data, WS_Network.ClientClass client = null, int start = 0)
     {
-        var buffer = "";
+        if(data is null)
+        {
+            throw new ArgumentNullException(nameof(data));
+        }
+
+        var buffer = string.Empty;
+
         checked
         {
             try
             {
-                buffer = (client != null) ? (buffer + $"[{client.IP}:{client.Port}] DEBUG: Packet Dump - Length={data.Length - start}{Environment.NewLine}") : (buffer + $"DEBUG: Packet Dump{Environment.NewLine}");
-                if (checked(data.Length - start) % 16 == 0)
+                buffer = (client != null)
+                    ? (buffer + $"[{client.IP}:{client.Port}] DEBUG: Packet Dump - Length={data.Length - start}{Environment.NewLine}")
+                    : (buffer + $"DEBUG: Packet Dump{Environment.NewLine}");
+                if((checked(data.Length - start) % 16) == 0)
                 {
                     var num = data.Length - 1;
-                    for (var i = start; i <= num; i += 16)
+                    for(var i = start; i <= num; i += 16)
                     {
-                        buffer = buffer + "|  " + BitConverter.ToString(data, i, 16).Replace("-", " ");
-                        buffer = buffer + " |  " + Encoding.ASCII.GetString(data, i, 16).Replace("\t", "?").Replace("\b", "?")
-                            .Replace("\r", "?")
-                            .Replace("\f", "?")
-                            .Replace("\n", "?") + " |" + Environment.NewLine;
+                        buffer = $"{buffer}|  {BitConverter.ToString(data, i, 16).Replace("-", " ")}";
+                        buffer = $"{buffer} |  {Encoding.ASCII.GetString(data, i, 16).Replace("\t", "?").Replace("\b", "?").Replace("\r", "?").Replace("\f", "?").Replace("\n", "?")} |{Environment.NewLine}";
                     }
-                }
-                else
+                } else
                 {
                     var num2 = data.Length - 1 - 16;
                     int i;
-                    for (i = start; i <= num2; i += 16)
+                    for(i = start; i <= num2; i += 16)
                     {
-                        buffer = buffer + "|  " + BitConverter.ToString(data, i, 16).Replace("-", " ");
-                        buffer = buffer + " |  " + Encoding.ASCII.GetString(data, i, 16).Replace("\t", "?").Replace("\b", "?")
-                            .Replace("\r", "?")
-                            .Replace("\f", "?")
-                            .Replace("\n", "?") + " |" + Environment.NewLine;
+                        buffer = $"{buffer}|  {BitConverter.ToString(data, i, 16).Replace("-", " ")}";
+                        buffer = $"{buffer} |  {Encoding.ASCII.GetString(data, i, 16).Replace("\t", "?").Replace("\b", "?").Replace("\r", "?").Replace("\f", "?").Replace("\n", "?")} |{Environment.NewLine}";
                     }
                     unchecked
                     {
-                        buffer = buffer + "|  " + BitConverter.ToString(data, i, checked(data.Length - start) % 16).Replace("-", " ");
+                        buffer = $"{buffer}|  {BitConverter.ToString(data, i, checked(data.Length - start) % 16).Replace("-", " ")}";
                     }
                     buffer += new string(' ', (16 - (checked(data.Length - start) % 16)) * 3);
                     unchecked
                     {
-                        buffer = buffer + " |  " + Encoding.ASCII.GetString(data, i, checked(data.Length - start) % 16).Replace("\t", "?").Replace("\b", "?")
-                            .Replace("\r", "?")
-                            .Replace("\f", "?")
-                            .Replace("\n", "?");
+                        buffer = $"{buffer} |  {Encoding.ASCII.GetString(data, i, checked(data.Length - start) % 16).Replace("\t", "?").Replace("\b", "?").Replace("\r", "?").Replace("\f", "?").Replace("\n", "?")}";
                     }
                     buffer += new string(' ', 16 - (checked(data.Length - start) % 16));
-                    buffer = buffer + " |" + Environment.NewLine;
+                    buffer = $"{buffer} |{Environment.NewLine}";
                 }
                 WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, buffer, null);
-            }
-            catch (Exception ex)
+            } catch(Exception ex)
             {
-                ProjectData.SetProjectError(ex);
-                var e = ex;
-                WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, "Error dumping packet: {0}{1}", Environment.NewLine, e.ToString());
-                ProjectData.ClearProjectError();
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(LogType.FAILED, "Error dumping packet: {0}{1}", Environment.NewLine, ex.ToString());
             }
         }
     }

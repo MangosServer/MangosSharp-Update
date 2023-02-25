@@ -18,44 +18,112 @@
 
 using Mangos.World.Objects;
 using Mangos.World.Player;
+using System;
 
 namespace Mangos.World.Quests;
 
 public class WS_QuestsBaseScripted : WS_QuestsBase
 {
-    public virtual void OnQuestStart(ref WS_PlayerData.CharacterObject objCharacter)
+    public virtual void OnQuestCancel(ref WS_PlayerData.CharacterObject objCharacter)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+    }
+
+    public virtual void OnQuestCastSpell(
+        ref WS_PlayerData.CharacterObject objCharacter,
+        ref WS_Creatures.CreatureObject Creature,
+        int SpellID)
+    {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
+        if(Creature is null)
+        {
+            throw new ArgumentNullException(nameof(Creature));
+        }
+    }
+
+    public virtual void OnQuestCastSpell(
+        ref WS_PlayerData.CharacterObject objCharacter,
+        ref WS_GameObjects.GameObject GameObject,
+        int SpellID)
+    {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
+        if(GameObject is null)
+        {
+            throw new ArgumentNullException(nameof(GameObject));
+        }
     }
 
     public virtual void OnQuestComplete(ref WS_PlayerData.CharacterObject objCharacter)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
     }
 
-    public virtual void OnQuestCancel(ref WS_PlayerData.CharacterObject objCharacter)
+    public virtual void OnQuestEmote(
+        ref WS_PlayerData.CharacterObject objCharacter,
+        ref WS_Creatures.CreatureObject Creature,
+        int EmoteID)
     {
-    }
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
 
-    public virtual void OnQuestItem(ref WS_PlayerData.CharacterObject objCharacter, int ItemID, int ItemCount)
-    {
-    }
-
-    public virtual void OnQuestKill(ref WS_PlayerData.CharacterObject objCharacter, ref WS_Creatures.CreatureObject Creature)
-    {
-    }
-
-    public virtual void OnQuestCastSpell(ref WS_PlayerData.CharacterObject objCharacter, ref WS_Creatures.CreatureObject Creature, int SpellID)
-    {
-    }
-
-    public virtual void OnQuestCastSpell(ref WS_PlayerData.CharacterObject objCharacter, ref WS_GameObjects.GameObject GameObject, int SpellID)
-    {
+        if(Creature is null)
+        {
+            throw new ArgumentNullException(nameof(Creature));
+        }
     }
 
     public virtual void OnQuestExplore(ref WS_PlayerData.CharacterObject objCharacter, int AreaID)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
     }
 
-    public virtual void OnQuestEmote(ref WS_PlayerData.CharacterObject objCharacter, ref WS_Creatures.CreatureObject Creature, int EmoteID)
+    public virtual void OnQuestItem(ref WS_PlayerData.CharacterObject objCharacter, int ItemID, int ItemCount)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+    }
+
+    public virtual void OnQuestKill(
+        ref WS_PlayerData.CharacterObject objCharacter,
+        ref WS_Creatures.CreatureObject Creature)
+    {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
+        if(Creature is null)
+        {
+            throw new ArgumentNullException(nameof(Creature));
+        }
+    }
+
+    public virtual void OnQuestStart(ref WS_PlayerData.CharacterObject objCharacter)
+    {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
     }
 }

@@ -19,7 +19,6 @@
 using Mangos.Common.Enums.Global;
 using Mangos.Common.Enums.Group;
 using Mangos.Common.Globals;
-using Mangos.World.Globals;
 using Mangos.World.Player;
 using System;
 using System.Collections.Generic;
@@ -28,96 +27,9 @@ namespace Mangos.World.Social;
 
 public class WS_Group
 {
-    public sealed class Group : IDisposable
-    {
-        public readonly long ID;
-
-        public GroupType Type;
-
-        public GroupDungeonDifficulty DungeonDifficulty;
-
-        public GroupLootMethod LootMethod;
-
-        public GroupLootThreshold LootThreshold;
-
-        public ulong Leader;
-
-        public List<ulong> LocalMembers;
-
-        public WS_PlayerData.CharacterObject LocalLootMaster;
-
-        private bool _disposedValue;
-
-        public Group(long groupID)
-        {
-            Type = GroupType.PARTY;
-            DungeonDifficulty = GroupDungeonDifficulty.DIFFICULTY_NORMAL;
-            LootMethod = GroupLootMethod.LOOT_GROUP;
-            LootThreshold = GroupLootThreshold.Uncommon;
-            ID = groupID;
-            WorldServiceLocator.WSGroup.Groups.Add(ID, this);
-        }
-
-        private void Dispose(bool disposing)
-        {
-            if (!_disposedValue)
-            {
-                WorldServiceLocator.WSGroup.Groups.Remove(ID);
-            }
-            _disposedValue = true;
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        void IDisposable.Dispose()
-        {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
-        }
-
-        public void Broadcast(Packets.PacketClass p)
-        {
-            p.UpdateLength();
-            WorldServiceLocator.WorldServer.ClsWorldServer.Cluster.BroadcastGroup(ID, p.Data);
-        }
-
-        public WS_PlayerData.CharacterObject GetNextLooter()
-        {
-            var nextIsLooter = false;
-            var nextLooterFound = false;
-            foreach (var guid in LocalMembers)
-            {
-                if (nextIsLooter)
-                {
-                    WorldServiceLocator.WSGroup._lastLooter = guid;
-                    nextLooterFound = true;
-                    break;
-                }
-                if (guid == WorldServiceLocator.WSGroup._lastLooter)
-                {
-                    nextIsLooter = true;
-                }
-            }
-            if (!nextLooterFound)
-            {
-                WorldServiceLocator.WSGroup._lastLooter = LocalMembers[0];
-            }
-            return WorldServiceLocator.WorldServer.CHARACTERs[WorldServiceLocator.WSGroup._lastLooter];
-        }
-
-        public int GetMembersCount()
-        {
-            return LocalMembers.Count;
-        }
-    }
+    private ulong _lastLooter;
 
     public readonly Dictionary<long, Group> Groups;
-
-    private ulong _lastLooter;
 
     public WS_Group()
     {
@@ -125,28 +37,35 @@ public class WS_Group
         _lastLooter = 0uL;
     }
 
-    public Packets.PacketClass BuildPartyMemberStats(ref WS_PlayerData.CharacterObject objCharacter, uint flag)
+    public Packets.Packets.PacketClass BuildPartyMemberStats(
+        ref WS_PlayerData.CharacterObject objCharacter,
+        uint flag)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
         var opCode = Opcodes.SMSG_PARTY_MEMBER_STATS;
-        if (flag is 1015 or 524279)
+        if(flag is 1015 or 524279)
         {
             opCode = Opcodes.SMSG_PARTY_MEMBER_STATS_FULL;
-            if (objCharacter.ManaType != 0)
+            if(objCharacter.ManaType != 0)
             {
                 flag |= 8u;
             }
         }
-        Packets.PacketClass packet = new(opCode);
+        Packets.Packets.PacketClass packet = new(opCode);
         packet.AddPackGUID(objCharacter.GUID);
         packet.AddUInt32(flag);
-        if ((flag & (true ? 1u : 0u)) != 0)
+        if((flag & (true ? 1u : 0u)) != 0)
         {
             byte memberFlags = 1;
-            if (objCharacter.IsPvP)
+            if(objCharacter.IsPvP)
             {
                 memberFlags = (byte)(memberFlags | 2);
             }
-            if (objCharacter.DEAD)
+            if(objCharacter.DEAD)
             {
                 memberFlags = (byte)(memberFlags | 0x10);
             }
@@ -154,70 +73,66 @@ public class WS_Group
         }
         checked
         {
-            if ((flag & 2u) != 0)
+            if((flag & 2u) != 0)
             {
                 packet.AddUInt16((ushort)objCharacter.Life.Current);
             }
-            if ((flag & 4u) != 0)
+            if((flag & 4u) != 0)
             {
                 packet.AddUInt16((ushort)objCharacter.Life.Maximum);
             }
-            if ((flag & 8u) != 0)
+            if((flag & 8u) != 0)
             {
                 packet.AddInt8((byte)objCharacter.ManaType);
             }
-            if ((flag & 0x10u) != 0)
+            if((flag & 0x10u) != 0)
             {
-                if (objCharacter.ManaType == ManaTypes.TYPE_RAGE)
+                if(objCharacter.ManaType == ManaTypes.TYPE_RAGE)
                 {
                     packet.AddUInt16((ushort)objCharacter.Rage.Current);
-                }
-                else if (objCharacter.ManaType == ManaTypes.TYPE_ENERGY)
+                } else if(objCharacter.ManaType == ManaTypes.TYPE_ENERGY)
                 {
                     packet.AddUInt16((ushort)objCharacter.Energy.Current);
-                }
-                else
+                } else
                 {
                     packet.AddUInt16((ushort)objCharacter.Mana.Current);
                 }
             }
-            if ((flag & 0x20u) != 0)
+            if((flag & 0x20u) != 0)
             {
-                if (objCharacter.ManaType == ManaTypes.TYPE_RAGE)
+                if(objCharacter.ManaType == ManaTypes.TYPE_RAGE)
                 {
                     packet.AddUInt16((ushort)objCharacter.Rage.Maximum);
-                }
-                else if (objCharacter.ManaType == ManaTypes.TYPE_ENERGY)
+                } else if(objCharacter.ManaType == ManaTypes.TYPE_ENERGY)
                 {
                     packet.AddUInt16((ushort)objCharacter.Energy.Maximum);
-                }
-                else
+                } else
                 {
                     packet.AddUInt16((ushort)objCharacter.Mana.Maximum);
                 }
             }
-            if ((flag & 0x40u) != 0)
+            if((flag & 0x40u) != 0)
             {
                 packet.AddUInt16(objCharacter.Level);
             }
-            if ((flag & 0x80u) != 0)
+            if((flag & 0x80u) != 0)
             {
                 packet.AddUInt16((ushort)objCharacter.ZoneID);
             }
-            if ((flag & 0x100u) != 0)
+            if((flag & 0x100u) != 0)
             {
                 packet.AddInt16((short)objCharacter.positionX);
                 packet.AddInt16((short)objCharacter.positionY);
             }
-            if ((flag & 0x200u) != 0)
+            if((flag & 0x200u) != 0)
             {
                 var auraMask2 = 0uL;
                 var auraPos2 = packet.Data.Length;
                 packet.AddUInt64(0uL);
                 var num = WorldServiceLocator.GlobalConstants.MAX_AURA_EFFECTs_VISIBLE - 1;
-                for (var j = 0; j <= num; j++)
+                for(var j = 0; j <= num; j++)
                 {
-                    if (objCharacter.ActiveSpells[j] != null)
+                    if(objCharacter.ActiveSpells[j] != null)
                     {
                         unchecked
                         {
@@ -229,105 +144,97 @@ public class WS_Group
                 }
                 packet.AddUInt64(auraMask2, auraPos2);
             }
-            if ((flag & 0x400u) != 0)
+            if((flag & 0x400u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddUInt64(objCharacter.Pet.GUID);
-                }
-                else
+                } else
                 {
                     packet.AddInt64(0L);
                 }
             }
-            if ((flag & 0x800u) != 0)
+            if((flag & 0x800u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddString(objCharacter.Pet.PetName);
-                }
-                else
+                } else
                 {
-                    packet.AddString("");
+                    packet.AddString(string.Empty);
                 }
             }
-            if ((flag & 0x1000u) != 0)
+            if((flag & 0x1000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddUInt16((ushort)objCharacter.Pet.Model);
-                }
-                else
+                } else
                 {
                     packet.AddInt16(0);
                 }
             }
-            if ((flag & 0x2000u) != 0)
+            if((flag & 0x2000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddUInt16((ushort)objCharacter.Pet.Life.Current);
-                }
-                else
+                } else
                 {
                     packet.AddInt16(0);
                 }
             }
-            if ((flag & 0x4000u) != 0)
+            if((flag & 0x4000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddUInt16((ushort)objCharacter.Pet.Life.Maximum);
-                }
-                else
+                } else
                 {
                     packet.AddInt16(0);
                 }
             }
-            if ((flag & 0x8000u) != 0)
+            if((flag & 0x8000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddInt8(2);
-                }
-                else
+                } else
                 {
                     packet.AddInt8(0);
                 }
             }
-            if ((flag & 0x10000u) != 0)
+            if((flag & 0x10000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddUInt16((ushort)objCharacter.Pet.Mana.Current);
-                }
-                else
+                } else
                 {
                     packet.AddInt16(0);
                 }
             }
-            if ((flag & 0x20000u) != 0)
+            if((flag & 0x20000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     packet.AddUInt16((ushort)objCharacter.Pet.Mana.Maximum);
-                }
-                else
+                } else
                 {
                     packet.AddInt16(0);
                 }
             }
-            if ((flag & 0x40000u) != 0)
+            if((flag & 0x40000u) != 0)
             {
-                if (objCharacter.Pet != null)
+                if(objCharacter.Pet != null)
                 {
                     var auraMask = 0uL;
                     var auraPos = packet.Data.Length;
                     packet.AddUInt64(0uL);
                     var num2 = WorldServiceLocator.GlobalConstants.MAX_AURA_EFFECTs_VISIBLE - 1;
-                    for (var i = 0; i <= num2; i++)
+                    for(var i = 0; i <= num2; i++)
                     {
-                        if (objCharacter.Pet.ActiveSpells[i] != null)
+                        if(objCharacter.Pet.ActiveSpells[i] != null)
                         {
                             unchecked
                             {
@@ -338,13 +245,100 @@ public class WS_Group
                         }
                     }
                     packet.AddUInt64(auraMask, auraPos);
-                }
-                else
+                } else
                 {
                     packet.AddInt64(0L);
                 }
             }
             return packet;
+        }
+    }
+
+    public sealed class Group : IDisposable
+    {
+        private bool _disposedValue;
+
+        public GroupDungeonDifficulty DungeonDifficulty;
+        public readonly long ID;
+
+        public ulong Leader;
+
+        public WS_PlayerData.CharacterObject LocalLootMaster;
+
+        public List<ulong> LocalMembers;
+
+        public GroupLootMethod LootMethod;
+
+        public GroupLootThreshold LootThreshold;
+
+        public GroupType Type;
+
+        public Group(long groupID)
+        {
+            Type = GroupType.PARTY;
+            DungeonDifficulty = GroupDungeonDifficulty.DIFFICULTY_NORMAL;
+            LootMethod = GroupLootMethod.LOOT_GROUP;
+            LootThreshold = GroupLootThreshold.Uncommon;
+            ID = groupID;
+            WorldServiceLocator.WSGroup.Groups.Add(ID, this);
+        }
+
+        void IDisposable.Dispose()
+        {
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if(!_disposedValue)
+            {
+                WorldServiceLocator.WSGroup.Groups.Remove(ID);
+            }
+            _disposedValue = true;
+        }
+
+        public void Broadcast(Packets.Packets.PacketClass p)
+        {
+            if(p is null)
+            {
+                throw new ArgumentNullException(nameof(p));
+            }
+
+            p.UpdateLength();
+            WorldServiceLocator.WorldServer.ClsWorldServer.Cluster.BroadcastGroup(ID, p.Data);
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        public int GetMembersCount() { return LocalMembers.Count; }
+
+        public WS_PlayerData.CharacterObject GetNextLooter()
+        {
+            var nextIsLooter = false;
+            var nextLooterFound = false;
+            foreach(var guid in LocalMembers)
+            {
+                if(nextIsLooter)
+                {
+                    WorldServiceLocator.WSGroup._lastLooter = guid;
+                    nextLooterFound = true;
+                    break;
+                }
+                if(guid == WorldServiceLocator.WSGroup._lastLooter)
+                {
+                    nextIsLooter = true;
+                }
+            }
+            if(!nextLooterFound)
+            {
+                WorldServiceLocator.WSGroup._lastLooter = LocalMembers[0];
+            }
+            return WorldServiceLocator.WorldServer.CHARACTERs[WorldServiceLocator.WSGroup._lastLooter];
         }
     }
 }

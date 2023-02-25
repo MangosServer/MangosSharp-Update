@@ -28,6 +28,10 @@ public partial class WS_Creatures_AI
 {
     public class CritterAI : TBaseAI
     {
+        protected const int AI_INTERVAL_MOVE = 3000;
+
+        protected const float PIx2 = ((float)Math.PI) * 2f;
+
         protected WS_Creatures.CreatureObject aiCreature;
 
         protected int aiTimer;
@@ -35,10 +39,6 @@ public partial class WS_Creatures_AI
         protected int CombatTimer;
 
         protected bool WasAlive;
-
-        protected const int AI_INTERVAL_MOVE = 3000;
-
-        protected const float PIx2 = (float)Math.PI * 2f;
 
         public CritterAI(ref WS_Creatures.CreatureObject Creature)
         {
@@ -51,96 +51,125 @@ public partial class WS_Creatures_AI
             aiTarget = null;
         }
 
-        public override bool IsMoving => checked(WorldServiceLocator.NativeMethods.timeGetTime("") - aiCreature.LastMove) < aiTimer
-            && (State switch
+        public override void DoMove()
+        {
+            if((bool)(aiCreature?.IsRooted))
             {
-                AIState.AI_MOVE_FOR_ATTACK => true,
-                AIState.AI_MOVING => true,
-                AIState.AI_WANDERING => true,
-                _ => false,
-            });
-
-        public override void Pause(int Time)
-        {
-            aiTimer = Time;
-        }
-
-        public override void OnEnterCombat()
-        {
-        }
-
-        public override void OnLeaveCombat(bool Reset = true)
-        {
-        }
-
-        public override void OnGenerateHate(ref WS_Base.BaseUnit Attacker, int HateValue)
-        {
-            if (Attacker is null)
-            {
-                throw new ArgumentNullException(nameof(Attacker));
+                aiTimer = 1000;
+                return;
             }
-
-            if (CombatTimer <= 0)
+            byte MoveTries = 0;
+            checked
             {
-                CombatTimer = 6000;
-                State = AIState.AI_ATTACKING;
-            }
-        }
+                bool DoRun;
+                float selectedX;
+                float selectedY;
+                float selectedZ;
+                while(true)
+                {
+                    if(MoveTries > 5)
+                    {
+                        aiCreature?.MoveToInstant(
+                        aiCreature.SpawnX,
+                        aiCreature.SpawnY,
+                        aiCreature.SpawnZ,
+                        aiCreature.orientation);
+                        return;
+                    }
+                    DoRun = false;
+                    if(State == AIState.AI_ATTACKING)
+                    {
+                        CombatTimer -= 1000;
+                        switch(CombatTimer)
+                        {
+                            case <= 0:
+                                CombatTimer = 0;
+                                State = AIState.AI_WANDERING;
+                                break;
 
-        public override void Reset()
-        {
-            aiTimer = 0;
+                            default:
+                                DoRun = true;
+                                break;
+                        }
+                    }
+                    var distance = (!DoRun)
+                        ? ((float)(3.0 * (aiCreature?.CreatureInfo?.WalkSpeed)))
+                        : ((float)(3.0 * (aiCreature?.CreatureInfo?.RunSpeed) * (aiCreature?.SpeedMod)));
+                    var angle = (float)(WorldServiceLocator.WorldServer.Rnd.NextDouble() * 6.2831854820251465);
+                    aiCreature?.SetToRealPosition();
+                    aiCreature.orientation = angle;
+                    selectedX = (float)((aiCreature?.positionX) + (Math.Cos(angle) * distance));
+                    selectedY = (float)((aiCreature?.positionY) + (Math.Sin(angle) * distance));
+                    selectedZ = WorldServiceLocator.WSMaps
+                        .GetZCoord(selectedX, selectedY, aiCreature.positionZ, aiCreature.MapID);
+                    MoveTries = (byte)(MoveTries + 1);
+                    if(!(Math.Abs(aiCreature.positionZ - selectedZ) > 5f))
+                    {
+                        ref var reference = ref aiCreature;
+                        WS_Base.BaseObject obj = reference;
+                        reference = (WS_Creatures.CreatureObject)obj;
+                        var flag = WorldServiceLocator.WSMaps
+                            .IsInLineOfSight(ref obj, selectedX, selectedY, selectedZ + 2f);
+                        if(flag)
+                        {
+                            break;
+                        }
+                    }
+                }
+                aiTimer = aiCreature.CanMoveTo(selectedX, selectedY, selectedZ)
+                    ? aiCreature.MoveTo(selectedX, selectedY, selectedZ, 0f, DoRun)
+                    : 3000;
+            }
         }
 
         public override void DoThink()
         {
-            if (aiCreature == null)
+            if(aiCreature == null)
             {
                 return;
             }
             checked
             {
-                if (aiTimer > 1000)
+                if(aiTimer > 1000)
                 {
                     aiTimer -= 1000;
                     return;
                 }
                 aiTimer = 0;
-                if (State != AIState.AI_DEAD && State != AIState.AI_RESPAWN && aiCreature.Life.Current == 0)
+                if((State != AIState.AI_DEAD) && (State != AIState.AI_RESPAWN) && (aiCreature.Life.Current == 0))
                 {
                     State = AIState.AI_DEAD;
                 }
-                if ((bool)(aiCreature?.IsStunned))
+                if((bool)(aiCreature?.IsStunned))
                 {
                     aiTimer = 1000;
                     return;
                 }
-                switch (State)
+                switch(State)
                 {
                     case AIState.AI_DEAD:
+                        if(WasAlive)
                         {
-                            if (WasAlive)
-                            {
-                                OnLeaveCombat(Reset: false);
-                                aiTimer = 30000;
-                                WasAlive = false;
-                                break;
-                            }
-                            State = AIState.AI_RESPAWN;
-                            WasAlive = true;
-                            var RespawnTime = (int)(aiCreature?.SpawnTime);
-                            switch (RespawnTime)
-                            {
-                                case > 0:
-                                    aiTimer = RespawnTime * 1000;
-                                    aiCreature?.Despawn();
-                                    break;
-                                default:
-                                    aiCreature?.Destroy();
-                                    break;
-                            }
+                            OnLeaveCombat(Reset: false);
+                            aiTimer = 30000;
+                            WasAlive = false;
                             break;
                         }
+                        State = AIState.AI_RESPAWN;
+                        WasAlive = true;
+                        var RespawnTime = (int)(aiCreature?.SpawnTime);
+                        switch(RespawnTime)
+                        {
+                            case > 0:
+                                aiTimer = RespawnTime * 1000;
+                                aiCreature?.Despawn();
+                                break;
+
+                            default:
+                                aiCreature?.Destroy();
+                                break;
+                        }
+                        break;
                     case AIState.AI_RESPAWN:
                         State = AIState.AI_WANDERING;
                         aiCreature?.Respawn();
@@ -153,7 +182,7 @@ public partial class WS_Creatures_AI
                         break;
 
                     case AIState.AI_WANDERING:
-                        if (WorldServiceLocator.WorldServer.Rnd.NextDouble() > 0.20000000298023224)
+                        if(WorldServiceLocator.WorldServer.Rnd.NextDouble() > 0.20000000298023224)
                         {
                             DoMove();
                         }
@@ -177,71 +206,51 @@ public partial class WS_Creatures_AI
                         break;
 
                     default:
-                        aiCreature?.SendChatMessage("Unknown AI mode!", ChatMsg.CHAT_MSG_MONSTER_SAY, LANGUAGES.LANG_GLOBAL);
+                        aiCreature?.SendChatMessage(
+                        "Unknown AI mode!",
+                        ChatMsg.CHAT_MSG_MONSTER_SAY,
+                        LANGUAGES.LANG_GLOBAL);
                         State = AIState.AI_DO_NOTHING;
                         break;
                 }
             }
         }
 
-        public override void DoMove()
+        public override void OnEnterCombat()
         {
-            if ((bool)(aiCreature?.IsRooted))
+        }
+
+        public override void OnGenerateHate(ref WS_Base.BaseUnit Attacker, int HateValue)
+        {
+            if(Attacker is null)
             {
-                aiTimer = 1000;
-                return;
+                throw new ArgumentNullException(nameof(Attacker));
             }
-            byte MoveTries = 0;
-            checked
+
+            if(CombatTimer <= 0)
             {
-                bool DoRun;
-                float selectedX;
-                float selectedY;
-                float selectedZ;
-                while (true)
-                {
-                    if (MoveTries > 5)
-                    {
-                        aiCreature?.MoveToInstant(aiCreature.SpawnX, aiCreature.SpawnY, aiCreature.SpawnZ, aiCreature.orientation);
-                        return;
-                    }
-                    DoRun = false;
-                    if (State == AIState.AI_ATTACKING)
-                    {
-                        CombatTimer -= 1000;
-                        switch (CombatTimer)
-                        {
-                            case <= 0:
-                                CombatTimer = 0;
-                                State = AIState.AI_WANDERING;
-                                break;
-                            default:
-                                DoRun = true;
-                                break;
-                        }
-                    }
-                    var distance = (!DoRun) ? ((float)(3.0 * aiCreature?.CreatureInfo?.WalkSpeed)) : ((float)(3.0 * aiCreature?.CreatureInfo?.RunSpeed * aiCreature?.SpeedMod));
-                    var angle = (float)(WorldServiceLocator.WorldServer.Rnd.NextDouble() * 6.2831854820251465);
-                    aiCreature?.SetToRealPosition();
-                    aiCreature.orientation = angle;
-                    selectedX = (float)(aiCreature?.positionX + (Math.Cos(angle) * distance));
-                    selectedY = (float)(aiCreature?.positionY + (Math.Sin(angle) * distance));
-                    selectedZ = WorldServiceLocator.WSMaps.GetZCoord(selectedX, selectedY, aiCreature.positionZ, aiCreature.MapID);
-                    MoveTries = (byte)(MoveTries + 1);
-                    if (!(Math.Abs(aiCreature.positionZ - selectedZ) > 5f))
-                    {
-                        ref var reference = ref aiCreature;
-                        WS_Base.BaseObject obj = reference;
-                        reference = (WS_Creatures.CreatureObject)obj;
-                        var flag = WorldServiceLocator.WSMaps.IsInLineOfSight(ref obj, selectedX, selectedY, selectedZ + 2f);
-                        if (flag)
-                        {
-                            break;
-                        }
-                    }
-                }
-                aiTimer = aiCreature.CanMoveTo(selectedX, selectedY, selectedZ) ? aiCreature.MoveTo(selectedX, selectedY, selectedZ, 0f, DoRun) : 3000;
+                CombatTimer = 6000;
+                State = AIState.AI_ATTACKING;
             }
         }
+
+        public override void OnLeaveCombat(bool Reset = true)
+        {
+        }
+
+        public override void Pause(int Time) { aiTimer = Time; }
+
+        public override void Reset() { aiTimer = 0; }
+
+        public override bool IsMoving => (checked(WorldServiceLocator.NativeMethods.timeGetTime(string.Empty) -
+                    aiCreature.LastMove) <
+                aiTimer) &&
+            (State switch
+            {
+                AIState.AI_MOVE_FOR_ATTACK => true,
+                AIState.AI_MOVING => true,
+                AIState.AI_WANDERING => true,
+                _ => false,
+            });
     }
 }

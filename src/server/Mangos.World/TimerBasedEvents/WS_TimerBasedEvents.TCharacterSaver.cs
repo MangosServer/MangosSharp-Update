@@ -17,23 +17,20 @@
 //
 
 using Mangos.Common.Enums.Global;
-using Microsoft.VisualBasic.CompilerServices;
 using System;
 using System.Threading;
 
-namespace Mangos.World.Server;
+namespace Mangos.World.TimerBasedEvents;
 
 public partial class WS_TimerBasedEvents
 {
     public class TCharacterSaver : IDisposable
     {
+        private bool _disposedValue;
+        private bool CharacterSaverWorking;
         public Timer CharacterSaverTimer;
 
-        private bool CharacterSaverWorking;
-
         public int UPDATE_TIMER;
-
-        private bool _disposedValue;
 
         public TCharacterSaver()
         {
@@ -43,30 +40,33 @@ public partial class WS_TimerBasedEvents
             CharacterSaverTimer = new Timer(Update, null, 10000, UPDATE_TIMER);
         }
 
+        void IDisposable.Dispose()
+        {
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
+        }
+
         private void Update(object state)
         {
-            if (CharacterSaverWorking)
+            if(CharacterSaverWorking)
             {
-                WorldServiceLocator.WorldServer.Log.WriteLine(LogType.WARNING, "Update: Character Saver skipping update");
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(LogType.WARNING, "Update: Character Saver skipping update");
                 return;
             }
             CharacterSaverWorking = true;
             try
             {
-                WorldServiceLocator.WorldServer.CHARACTERs_Lock.AcquireReaderLock(WorldServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
-                foreach (var cHARACTER in WorldServiceLocator.WorldServer.CHARACTERs)
+                WorldServiceLocator.WorldServer.CHARACTERs_Lock
+                    .AcquireReaderLock(WorldServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
+                foreach(var cHARACTER in WorldServiceLocator.WorldServer.CHARACTERs)
                 {
                     cHARACTER.Value.SaveCharacter();
                 }
-            }
-            catch (Exception ex2)
+            } catch(Exception ex)
             {
-                ProjectData.SetProjectError(ex2);
-                var ex = ex2;
                 WorldServiceLocator.WorldServer.Log.WriteLine(LogType.FAILED, ex.ToString(), null);
-                ProjectData.ClearProjectError();
-            }
-            finally
+            } finally
             {
                 WorldServiceLocator.WorldServer.CHARACTERs_Lock.ReleaseReaderLock();
             }
@@ -76,7 +76,7 @@ public partial class WS_TimerBasedEvents
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if(!_disposedValue)
             {
                 CharacterSaverTimer.Dispose();
                 CharacterSaverTimer = null;
@@ -88,12 +88,6 @@ public partial class WS_TimerBasedEvents
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
-        }
-
-        void IDisposable.Dispose()
-        {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
         }
     }
 }

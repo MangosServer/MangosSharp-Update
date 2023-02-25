@@ -23,35 +23,21 @@ using System;
 using System.Collections;
 using System.Text;
 
-namespace Mangos.World.Globals;
+namespace Mangos.World.Packets;
 
 public partial class Packets
 {
     public class PacketClass : IDisposable
     {
+        private bool _disposedValue;
         public byte[] Data;
 
         public int Offset;
 
-        private bool _disposedValue;
-
-        public int Length
-        {
-            get
-            {
-                checked
-                {
-                    return Data[1] + (Data[0] * 256);
-                }
-            }
-        }
-
-        public Opcodes OpCode => Information.UBound(Data) > 2 ? (Opcodes)checked(Data[2] + (Data[3] * 256)) : Opcodes.MSG_NULL_ACTION;
-
         public PacketClass(Opcodes opcode)
         {
             Offset = 4;
-            Data = new byte[4];
+            Data = (new byte[4]);
             Data[0] = 0;
             Data[1] = 0;
             checked
@@ -64,32 +50,50 @@ public partial class Packets
         public PacketClass(ref byte[] rawdata)
         {
             Offset = 4;
-            Data = rawdata;
+            Data = rawdata ?? throw new ArgumentNullException(nameof(rawdata));
             rawdata.CopyTo(Data, 0);
         }
 
-        public void CompressUpdatePacket()
+        void IDisposable.Dispose()
         {
-            if (OpCode == Opcodes.SMSG_UPDATE_OBJECT && Data.Length >= 200)
+            //ILSpy generated this explicit interface implementation from .override directive in Dispose
+            Dispose();
+        }
+
+        private byte[] GetByteArray(int lengthLoc)
+        {
+            checked
             {
-                var uncompressedSize = Data.Length;
-                var compressedBuffer = WorldServiceLocator.GlobalZip.Compress(Data, 4, checked(Data.Length - 4));
-                if (compressedBuffer.Length != 0)
+                if((Offset + lengthLoc) > Data.Length)
                 {
-                    Data = new byte[4];
-                    Data[0] = 0;
-                    Data[1] = 0;
-                    Data[2] = 246;
-                    Data[3] = 1;
-                    AddInt32(uncompressedSize);
-                    AddByteArray(compressedBuffer);
-                    UpdateLength();
+                    lengthLoc = Data.Length - Offset;
                 }
+                if(lengthLoc <= 0)
+                {
+                    return Array.Empty<byte>();
+                }
+                var tmpBytes = new byte[lengthLoc - 1 + 1];
+                Array.Copy(Data, Offset, tmpBytes, 0, tmpBytes.Length);
+                Offset += tmpBytes.Length;
+                return tmpBytes;
             }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if(!_disposedValue)
+            {
+            }
+            _disposedValue = true;
         }
 
         public void AddBitArray(BitArray buffer, int arraryLen)
         {
+            if(buffer is null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
             ref var data = ref Data;
             checked
             {
@@ -100,22 +104,24 @@ public partial class Packets
             }
         }
 
-        public void AddInt8(byte buffer, int position = 0)
+        public void AddByteArray(byte[] buffer)
         {
-            if (position <= 0 || position >= Data.Length)
+            if(buffer is null)
             {
-                position = Data.Length;
-                ref var data = ref Data;
-                data = (byte[])Utils.CopyArray(data, new byte[checked(Data.Length + 1)]);
+                throw new ArgumentNullException(nameof(buffer));
             }
-            Data[position] = buffer;
+
+            var tmp = Data.Length;
+            ref var data = ref Data;
+            data = (byte[])Utils.CopyArray(data, new byte[checked(Data.Length + buffer.Length - 1 + 1)]);
+            Array.Copy(buffer, 0, Data, tmp, buffer.Length);
         }
 
         public void AddInt16(short buffer, int position = 0)
         {
             checked
             {
-                if (position <= 0 || position >= Data.Length)
+                if((position <= 0) || (position >= Data.Length))
                 {
                     position = Data.Length;
                     ref var data = ref Data;
@@ -130,7 +136,7 @@ public partial class Packets
         {
             checked
             {
-                if (position <= 0 || position > Data.Length - 3)
+                if((position <= 0) || (position > (Data.Length - 3)))
                 {
                     position = Data.Length;
                     ref var data = ref Data;
@@ -147,7 +153,7 @@ public partial class Packets
         {
             checked
             {
-                if (position <= 0 || position > Data.Length - 7)
+                if((position <= 0) || (position > (Data.Length - 7)))
                 {
                     position = Data.Length;
                     ref var data = ref Data;
@@ -164,65 +170,15 @@ public partial class Packets
             }
         }
 
-        public void AddString(string buffer)
+        public void AddInt8(byte buffer, int position = 0)
         {
-            if (Information.IsDBNull(buffer) | (Operators.CompareString(buffer, "", TextCompare: false) == 0))
+            if((position <= 0) || (position >= Data.Length))
             {
-                AddInt8(0);
-                return;
+                position = Data.Length;
+                ref var data = ref Data;
+                data = (byte[])Utils.CopyArray(data, new byte[checked(Data.Length + 1)]);
             }
-            var bytes = Encoding.UTF8.GetBytes(buffer.ToCharArray());
-            ref var data = ref Data;
-            checked
-            {
-                data = (byte[])Utils.CopyArray(data, new byte[Data.Length + bytes.Length + 1]);
-                var num = bytes.Length - 1;
-                for (var i = 0; i <= num; i++)
-                {
-                    Data[Data.Length - 1 - bytes.Length + i] = bytes[i];
-                }
-                Data[^1] = 0;
-            }
-        }
-
-        public void AddString2(string buffer)
-        {
-            if (Information.IsDBNull(buffer) | (Operators.CompareString(buffer, "", TextCompare: false) == 0))
-            {
-                AddInt8(0);
-                return;
-            }
-            var bytes = Encoding.UTF8.GetBytes(buffer.ToCharArray());
-            ref var data = ref Data;
-            checked
-            {
-                data = (byte[])Utils.CopyArray(data, new byte[Data.Length + bytes.Length + 1]);
-                Data[Data.Length - 1 - bytes.Length] = (byte)bytes.Length;
-                var num = bytes.Length - 1;
-                for (var i = 0; i <= num; i++)
-                {
-                    Data[Data.Length - bytes.Length + i] = bytes[i];
-                }
-            }
-        }
-
-        public void AddSingle(float buffer2)
-        {
-            var buffer3 = BitConverter.GetBytes(buffer2);
-            ref var data = ref Data;
-            checked
-            {
-                data = (byte[])Utils.CopyArray(data, new byte[Data.Length + buffer3.Length - 1 + 1]);
-                Buffer.BlockCopy(buffer3, 0, Data, Data.Length - buffer3.Length, buffer3.Length);
-            }
-        }
-
-        public void AddByteArray(byte[] buffer)
-        {
-            var tmp = Data.Length;
-            ref var data = ref Data;
-            data = (byte[])Utils.CopyArray(data, new byte[checked(Data.Length + buffer.Length - 1 + 1)]);
-            Array.Copy(buffer, 0, Data, tmp, buffer.Length);
+            Data[position] = buffer;
         }
 
         public void AddPackGUID(ulong buffer)
@@ -237,13 +193,12 @@ public partial class Packets
                 do
                 {
                     flags[j] = guid[j] != 0;
-                    if (flags[j])
+                    if(flags[j])
                     {
                         offsetNewSize++;
                     }
                     j = (byte)unchecked((uint)(j + 1));
-                }
-                while (j <= 7u);
+                } while (j <= 7u);
                 ref var data = ref Data;
                 data = (byte[])Utils.CopyArray(data, new byte[offsetNewSize + 1]);
                 flags.CopyTo(Data, offsetStart);
@@ -251,14 +206,73 @@ public partial class Packets
                 byte i = 0;
                 do
                 {
-                    if (flags[i])
+                    if(flags[i])
                     {
                         Data[offsetStart] = guid[i];
                         offsetStart++;
                     }
                     i = (byte)unchecked((uint)(i + 1));
+                } while (i <= 7u);
+            }
+        }
+
+        public void AddSingle(float buffer2)
+        {
+            var buffer3 = BitConverter.GetBytes(buffer2);
+            ref var data = ref Data;
+            checked
+            {
+                data = (byte[])Utils.CopyArray(data, new byte[Data.Length + buffer3.Length - 1 + 1]);
+                Buffer.BlockCopy(buffer3, 0, Data, Data.Length - buffer3.Length, buffer3.Length);
+            }
+        }
+
+        public void AddString(string buffer)
+        {
+            if(Information.IsDBNull(buffer) ||
+                (Operators.CompareString(buffer, string.Empty, TextCompare: false) == 0))
+            {
+                AddInt8(0);
+                return;
+            }
+            var bytes = Encoding.UTF8.GetBytes(buffer.ToCharArray());
+            ref var data = ref Data;
+            checked
+            {
+                data = (byte[])Utils.CopyArray(data, new byte[Data.Length + bytes.Length + 1]);
+                var num = bytes.Length - 1;
+                for(var i = 0; i <= num; i++)
+                {
+                    Data[Data.Length - 1 - bytes.Length + i] = bytes[i];
                 }
-                while (i <= 7u);
+                Data[^1] = 0;
+            }
+        }
+
+        public void AddString2(string buffer)
+        {
+            if(string.IsNullOrEmpty(buffer))
+            {
+                throw new ArgumentException($"'{nameof(buffer)}' cannot be null or empty.", nameof(buffer));
+            }
+
+            if(Information.IsDBNull(buffer) ||
+                (Operators.CompareString(buffer, string.Empty, TextCompare: false) == 0))
+            {
+                AddInt8(0);
+                return;
+            }
+            var bytes = Encoding.UTF8.GetBytes(buffer.ToCharArray());
+            ref var data = ref Data;
+            checked
+            {
+                data = (byte[])Utils.CopyArray(data, new byte[Data.Length + bytes.Length + 1]);
+                Data[Data.Length - 1 - bytes.Length] = (byte)bytes.Length;
+                var num = bytes.Length - 1;
+                for(var i = 0; i <= num; i++)
+                {
+                    Data[Data.Length - bytes.Length + i] = bytes[i];
+                }
             }
         }
 
@@ -269,7 +283,7 @@ public partial class Packets
             {
                 data = (byte[])Utils.CopyArray(data, new byte[Data.Length + 1 + 1]);
                 Data[^2] = (byte)(buffer & 0xFF);
-                Data[^1] = (byte)(unchecked((ushort)((uint)buffer >> 8)) & 0xFF);
+                Data[^1] = (byte)(unchecked((ushort)(((uint)buffer) >> 8)) & 0xFF);
             }
         }
 
@@ -293,24 +307,45 @@ public partial class Packets
             AddInt64(valueConverted, position);
         }
 
-        public void UpdateLength()
+        public void CompressUpdatePacket()
         {
-            checked
+            if((OpCode == Opcodes.SMSG_UPDATE_OBJECT) && (Data.Length >= 200))
             {
-                if (!((Data[0] != 0) || (Data[1] != 0)))
+                var uncompressedSize = Data.Length;
+                var compressedBuffer = WorldServiceLocator.GlobalZip.Compress(Data, 4, checked(Data.Length - 4));
+                if(compressedBuffer.Length != 0)
                 {
-                    Data[0] = (byte)(checked(Data.Length - 2) / 256);
-                    Data[1] = (byte)(checked(Data.Length - 2) % 256);
+                    Data = (new byte[4]);
+                    Data[0] = 0;
+                    Data[1] = 0;
+                    Data[2] = 246;
+                    Data[3] = 1;
+                    AddInt32(uncompressedSize);
+                    AddByteArray(compressedBuffer);
+                    UpdateLength();
                 }
             }
         }
 
-        public byte GetInt8()
+        public void Dispose()
         {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        public byte[] GetByteArray()
+        {
+            var lengthLoc = checked(Data.Length - Offset);
+            return (lengthLoc <= 0) ? Array.Empty<byte>() : GetByteArray(lengthLoc);
+        }
+
+        public float GetFloat()
+        {
+            var single1 = BitConverter.ToSingle(Data, Offset);
             checked
             {
-                Offset++;
-                return Data[Offset - 1];
+                Offset += 4;
+                return single1;
             }
         }
 
@@ -344,13 +379,63 @@ public partial class Packets
             }
         }
 
-        public float GetFloat()
+        public byte GetInt8()
         {
-            var single1 = BitConverter.ToSingle(Data, Offset);
             checked
             {
-                Offset += 4;
-                return single1;
+                Offset++;
+                return Data[Offset - 1];
+            }
+        }
+
+        public ulong GetPackGuid()
+        {
+            var flags = Data[Offset];
+            var guid = new byte[8];
+            checked
+            {
+                Offset++;
+                if((flags & 1) == 1)
+                {
+                    guid[0] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 2) == 2)
+                {
+                    guid[1] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 4) == 4)
+                {
+                    guid[2] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 8) == 8)
+                {
+                    guid[3] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 0x10) == 16)
+                {
+                    guid[4] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 0x20) == 32)
+                {
+                    guid[5] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 0x40) == 64)
+                {
+                    guid[6] = Data[Offset];
+                    Offset++;
+                }
+                if((flags & 0x80) == 128)
+                {
+                    guid[7] = Data[Offset];
+                    Offset++;
+                }
+                return BitConverter.ToUInt64(guid, 0);
             }
         }
 
@@ -360,7 +445,7 @@ public partial class Packets
             var i = 0;
             checked
             {
-                while (Data[start + i] != 0)
+                while(Data[start + i] != 0)
                 {
                     i++;
                     Offset++;
@@ -411,100 +496,31 @@ public partial class Packets
             }
         }
 
-        public ulong GetPackGuid()
-        {
-            var flags = Data[Offset];
-            var guid = new byte[8];
-            checked
-            {
-                Offset++;
-                if ((flags & 1) == 1)
-                {
-                    guid[0] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 2) == 2)
-                {
-                    guid[1] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 4) == 4)
-                {
-                    guid[2] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 8) == 8)
-                {
-                    guid[3] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 0x10) == 16)
-                {
-                    guid[4] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 0x20) == 32)
-                {
-                    guid[5] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 0x40) == 64)
-                {
-                    guid[6] = Data[Offset];
-                    Offset++;
-                }
-                if ((flags & 0x80) == 128)
-                {
-                    guid[7] = Data[Offset];
-                    Offset++;
-                }
-                return BitConverter.ToUInt64(guid, 0);
-            }
-        }
-
-        public byte[] GetByteArray()
-        {
-            var lengthLoc = checked(Data.Length - Offset);
-            return lengthLoc <= 0 ? Array.Empty<byte>() : GetByteArray(lengthLoc);
-        }
-
-        private byte[] GetByteArray(int lengthLoc)
+        public void UpdateLength()
         {
             checked
             {
-                if (Offset + lengthLoc > Data.Length)
+                if(!((Data[0] != 0) || (Data[1] != 0)))
                 {
-                    lengthLoc = Data.Length - Offset;
+                    Data[0] = (byte)(checked(Data.Length - 2) / 256);
+                    Data[1] = (byte)(checked(Data.Length - 2) % 256);
                 }
-                if (lengthLoc <= 0)
-                {
-                    return Array.Empty<byte>();
-                }
-                var tmpBytes = new byte[lengthLoc - 1 + 1];
-                Array.Copy(Data, Offset, tmpBytes, 0, tmpBytes.Length);
-                Offset += tmpBytes.Length;
-                return tmpBytes;
             }
         }
 
-        protected virtual void Dispose(bool disposing)
+        public int Length
         {
-            if (!_disposedValue)
+            get
             {
+                checked
+                {
+                    return Data[1] + (Data[0] * 256);
+                }
             }
-            _disposedValue = true;
         }
 
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        void IDisposable.Dispose()
-        {
-            //ILSpy generated this explicit interface implementation from .override directive in Dispose
-            Dispose();
-        }
+        public Opcodes OpCode => (Information.UBound(Data) > 2)
+            ? ((Opcodes)checked(Data[2] + (Data[3] * 256)))
+            : Opcodes.MSG_NULL_ACTION;
     }
 }

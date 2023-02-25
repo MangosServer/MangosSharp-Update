@@ -22,38 +22,38 @@ namespace Mangos.Configuration;
 
 public sealed class WorldConfiguration
 {
-    public required string ClusterConnectHost { get; init; }
-    public required int ClusterConnectPort { get; init; }
-    public required string LocalConnectHost { get; init; }
-    public required int LocalConnectPort { get; init; }
+    public string? ClusterConnectHost { get; init; }
+    public int ClusterConnectPort { get; init; }
+    public string? LocalConnectHost { get; init; }
+    public int LocalConnectPort { get; init; }
 
-    public required string AccountDatabase { get; init; }
-    public required string CharacterDatabase { get; init; }
-    public required string WorldDatabase { get; init; }
+    public string? AccountDatabase { get; init; }
+    public string? CharacterDatabase { get; init; }
+    public string? WorldDatabase { get; init; }
 
-    public required ImmutableArray<int> Maps { get; init; }
-    public required ImmutableArray<string> ScriptsCompiler { get; init; }
-    public required bool VMapsEnabled { get; init; }
-    public required int MapResolution { get; init; }
+    public ImmutableArray<int> Maps { get; init; }
+    public ImmutableArray<string> ScriptsCompiler { get; init; }
+    public bool VMapsEnabled { get; init; }
+    public int MapResolution { get; init; }
 
-    public required string CommandCharacter { get; init; }
-    public required bool GlobalAuction { get; init; }
+    public string? CommandCharacter { get; init; }
+    public bool GlobalAuction { get; init; }
 
-    public required bool LineOfSightEnabled { get; set; }
-    public required bool HeightCalcEnabled { get; set; }
+    public bool LineOfSightEnabled { get; set; }
+    public bool HeightCalcEnabled { get; set; }
 
-    public required float ManaRegenerationRate { get; init; }
-    public required float HealthRegenerationRate { get; init; }
-    public required float XPRate { get; init; }
+    public float ManaRegenerationRate { get; init; }
+    public float HealthRegenerationRate { get; init; }
+    public float XPRate { get; init; }
 
-    public required string LogType { get; init; }
-    public required string LogConfig { get; init; }
+    public string? LogType { get; init; }
+    public string? LogConfig { get; init; }
 
-    public required bool CreateBattlegrounds { get; init; }
-    public required bool CreatePartyInstances { get; init; }
-    public required bool CreateRaidInstances { get; init; }
-    public required bool CreateOther { get; init; }
+    public bool CreateBattlegrounds { get; init; }
+    public bool CreatePartyInstances { get; init; }
+    public bool CreateRaidInstances { get; init; }
+    public bool CreateOther { get; init; }
 
-    public required int SaveTimer { get; init; }
-    public required int WeatherTimer { get; init; }
+    public int SaveTimer { get; init; }
+    public int WeatherTimer { get; init; }
 }

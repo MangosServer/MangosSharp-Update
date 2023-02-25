@@ -19,7 +19,6 @@
 using Mangos.Common.Enums.Global;
 using Mangos.Common.Enums.Spell;
 using Mangos.World.Player;
-using Mangos.World.Spells;
 using System.Collections.Generic;
 
 namespace Mangos.World.Objects;
@@ -28,14 +27,19 @@ public class WS_Totems
 {
     public class TotemObject : WS_Creatures.CreatureObject
     {
+        private readonly TotemType Type;
         public WS_Base.BaseUnit Caster;
 
         public int Duration;
 
-        private readonly TotemType Type;
-
-        public TotemObject(int Entry, float PosX, float PosY, float PosZ, float Orientation, int Map, int Duration_ = 0)
-            : base(Entry, PosX, PosY, PosZ, Orientation, Map, Duration_)
+        public TotemObject(
+            int Entry,
+            float PosX,
+            float PosY,
+            float PosZ,
+            float Orientation,
+            int Map,
+            int Duration_ = 0) : base(Entry, PosX, PosY, PosZ, Orientation, Map, Duration_)
         {
             Caster = null;
             Duration = 0;
@@ -45,45 +49,53 @@ public class WS_Totems
             Duration = Duration_;
         }
 
-        public void InitSpell(int SpellID)
-        {
-            ApplySpell(SpellID);
-        }
+        public void InitSpell(int SpellID) { ApplySpell(SpellID); }
 
         public void Update()
         {
             checked
             {
                 var num = WorldServiceLocator.GlobalConstants.MAX_AURA_EFFECTs - 1;
-                for (var i = 0; i <= num; i++)
+                for(var i = 0; i <= num; i++)
                 {
-                    if (ActiveSpells[i] == null)
+                    if(ActiveSpells[i] == null)
                     {
                         continue;
                     }
-                    if (ActiveSpells[i].SpellDuration == WorldServiceLocator.GlobalConstants.SPELL_DURATION_INFINITE)
+                    if(ActiveSpells[i].SpellDuration == WorldServiceLocator.GlobalConstants.SPELL_DURATION_INFINITE)
                     {
                         ActiveSpells[i].SpellDuration = Duration;
                     }
-                    if (ActiveSpells[i].SpellDuration != WorldServiceLocator.GlobalConstants.SPELL_DURATION_INFINITE)
+                    if(ActiveSpells[i].SpellDuration != WorldServiceLocator.GlobalConstants.SPELL_DURATION_INFINITE)
                     {
                         ActiveSpells[i].SpellDuration -= 1000;
                         byte k = 0;
                         do
                         {
-                            if (ActiveSpells[i] != null && ActiveSpells[i].Aura[k] != null && ActiveSpells[i].Aura_Info[k].Amplitude != 0 && checked(Duration - ActiveSpells[i].SpellDuration) % ActiveSpells[i].Aura_Info[k].Amplitude == 0)
+                            if(((ActiveSpells[i]?.Aura[k]) != null) &&
+                                (ActiveSpells[i].Aura_Info[k].Amplitude != 0) &&
+                                ((checked(Duration - ActiveSpells[i].SpellDuration) %
+                                        ActiveSpells[i].Aura_Info[k].Amplitude) ==
+                                    0))
                             {
                                 var obj = ActiveSpells[i].Aura[k];
                                 WS_Base.BaseUnit Target = this;
                                 ref var spellCaster = ref ActiveSpells[i].SpellCaster;
                                 WS_Base.BaseObject baseObject = spellCaster;
-                                obj(ref Target, ref baseObject, ref ActiveSpells[i].Aura_Info[k], ActiveSpells[i].SpellID, ActiveSpells[i].StackCount + 1, AuraAction.AURA_UPDATE);
+                                obj(
+                                    ref Target,
+                                    ref baseObject,
+                                    ref ActiveSpells[i].Aura_Info[k],
+                                    ActiveSpells[i].SpellID,
+                                    ActiveSpells[i].StackCount + 1,
+                                    AuraAction.AURA_UPDATE);
                                 spellCaster = (WS_Base.BaseUnit)baseObject;
                             }
                             k = (byte)unchecked((uint)(k + 1));
-                        }
-                        while (k <= 2u);
-                        if (ActiveSpells[i] != null && ActiveSpells[i].SpellDuration <= 0 && ActiveSpells[i].SpellDuration != WorldServiceLocator.GlobalConstants.SPELL_DURATION_INFINITE)
+                        } while (k <= 2u);
+                        if(((ActiveSpells[i]?.SpellDuration) <= 0) &&
+                            (ActiveSpells[i].SpellDuration !=
+                                WorldServiceLocator.GlobalConstants.SPELL_DURATION_INFINITE))
                         {
                             RemoveAura(i, ref ActiveSpells[i].SpellCaster, RemovedByDuration: true);
                         }
@@ -91,41 +103,47 @@ public class WS_Totems
                     byte j = 0;
                     do
                     {
-                        if (ActiveSpells[i] != null && ActiveSpells[i].Aura_Info[j] != null && ActiveSpells[i].Aura_Info[j].ID == SpellEffects_Names.SPELL_EFFECT_APPLY_AREA_AURA)
+                        if((ActiveSpells[i]?.Aura_Info[j]?.ID) == SpellEffects_Names.SPELL_EFFECT_APPLY_AREA_AURA)
                         {
                             List<WS_Base.BaseUnit> Targets = new();
-                            switch (Caster)
+                            switch(Caster)
                             {
                                 case WS_PlayerData.CharacterObject _:
-                                    {
-                                        var wS_Spells = WorldServiceLocator.WSSpells;
-                                        WS_PlayerData.CharacterObject objCharacter = (WS_PlayerData.CharacterObject)Caster;
-                                        Targets = wS_Spells.GetPartyMembersAtPoint(ref objCharacter, ActiveSpells[i].Aura_Info[j].GetRadius, positionX, positionY, positionZ);
-                                        break;
-                                    }
+                                    var wS_Spells = WorldServiceLocator.WSSpells;
+                                    var objCharacter = (WS_PlayerData.CharacterObject)Caster;
+                                    Targets = wS_Spells.GetPartyMembersAtPoint(
+                                        ref objCharacter,
+                                        ActiveSpells[i].Aura_Info[j].GetRadius,
+                                        positionX,
+                                        positionY,
+                                        positionZ);
+                                    break;
 
                                 default:
-                                    {
-                                        var wS_Spells2 = WorldServiceLocator.WSSpells;
-                                        WS_Base.BaseUnit Target = this;
-                                        Targets = wS_Spells2.GetFriendAroundMe(ref Target, ActiveSpells[i].Aura_Info[j].GetRadius);
-                                        break;
-                                    }
+                                    var wS_Spells2 = WorldServiceLocator.WSSpells;
+                                    WS_Base.BaseUnit Target = this;
+                                    Targets = wS_Spells2.GetFriendAroundMe(
+                                        ref Target,
+                                        ActiveSpells[i].Aura_Info[j].GetRadius);
+                                    break;
                             }
-                            foreach (var item in new List<WS_Base.BaseUnit>())
+                            foreach(var item in new List<WS_Base.BaseUnit>())
                             {
                                 var Unit = item;
-                                if (!Unit.HaveAura(ActiveSpells[i].SpellID))
+                                if(!Unit.HaveAura(ActiveSpells[i].SpellID))
                                 {
                                     var wS_Spells3 = WorldServiceLocator.WSSpells;
                                     WS_Base.BaseObject baseObject = this;
-                                    wS_Spells3.ApplyAura(ref Unit, ref baseObject, ref ActiveSpells[i].Aura_Info[j], ActiveSpells[i].SpellID);
+                                    wS_Spells3.ApplyAura(
+                                        ref Unit,
+                                        ref baseObject,
+                                        ref ActiveSpells[i].Aura_Info[j],
+                                        ActiveSpells[i].SpellID);
                                 }
                             }
                         }
                         j = (byte)unchecked((uint)(j + 1));
-                    }
-                    while (j <= 2u);
+                    } while (j <= 2u);
                 }
             }
         }

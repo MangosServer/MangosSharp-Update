@@ -24,25 +24,33 @@ public partial class WS_Loot
 {
     public class LootStoreItem
     {
-        public int ItemID;
-
         public float Chance;
-
-        public byte Group;
-
-        public int MinCountOrRef;
-
-        public byte MaxCount;
-
-        public ConditionType LootCondition;
 
         public int ConditionValue1;
 
         public int ConditionValue2;
 
+        public byte Group;
+        public int ItemID;
+
+        public ConditionType LootCondition;
+
+        public byte MaxCount;
+
+        public int MinCountOrRef;
+
         public bool NeedQuest;
 
-        public LootStoreItem(int Item, float Chance, byte Group, int MinCountOrRef, byte MaxCount, ConditionType LootCondition, int ConditionValue1, int ConditionValue2, bool NeedQuest)
+        public LootStoreItem(
+            int Item,
+            float Chance,
+            byte Group,
+            int MinCountOrRef,
+            byte MaxCount,
+            ConditionType LootCondition,
+            int ConditionValue1,
+            int ConditionValue2,
+            bool NeedQuest)
         {
             ItemID = 0;
             this.Chance = 0f;
@@ -64,9 +72,6 @@ public partial class WS_Loot
             this.NeedQuest = NeedQuest;
         }
 
-        public bool Roll()
-        {
-            return Chance >= 100f || WorldServiceLocator.Functions.RollChance(Chance);
-        }
+        public bool Roll() { return (Chance >= 100f) || WorldServiceLocator.Functions.RollChance(Chance); }
     }
 }

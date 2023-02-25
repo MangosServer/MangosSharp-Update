@@ -23,42 +23,43 @@ using System.Data;
 
 namespace Mangos.Cluster.Handlers.Guild;
 
-public partial class WcGuild
+public partial class WC_Guild
 {
     public class Guild : IDisposable
     {
         private readonly ClusterServiceLocator _clusterServiceLocator;
-
-        public Guild(ClusterServiceLocator clusterServiceLocator)
-        {
-            _clusterServiceLocator = clusterServiceLocator;
-        }
+        private bool _disposedValue; // To detect redundant calls
+        public byte BackgroundColor;
+        public byte BorderColor;
+        public byte BorderStyle;
+        public byte CDay;
+        public byte CMonth;
+        public short CYear;
+        public byte EmblemColor;
+        public byte EmblemStyle;
 
         public uint Id;
-        public string Name;
-        public ulong Leader;
-        public string Motd;
         public string Info;
+        public ulong Leader;
         public List<ulong> Members = new();
-        public string[] Ranks = new string[10];
+        public string Motd;
+        public string Name;
         public uint[] RankRights = new uint[10];
-        public byte EmblemStyle;
-        public byte EmblemColor;
-        public byte BorderStyle;
-        public byte BorderColor;
-        public byte BackgroundColor;
-        public short CYear;
-        public byte CMonth;
-        public byte CDay;
+        public string[] Ranks = new string[10];
+
+        public Guild(ClusterServiceLocator clusterServiceLocator)
+        { _clusterServiceLocator = clusterServiceLocator; }
 
         public Guild(uint guildId)
         {
             Id = guildId;
             DataTable mySqlQuery = new();
-            _clusterServiceLocator.WorldCluster.GetCharacterDatabase().Query("SELECT * FROM guilds WHERE guild_id = " + Id + ";", ref mySqlQuery);
-            if (mySqlQuery.Rows.Count == 0)
+            _clusterServiceLocator.WorldCluster
+                .GetCharacterDatabase()
+                .Query($"SELECT * FROM guilds WHERE guild_id = {Id};", ref mySqlQuery);
+            if(mySqlQuery.Rows.Count == 0)
             {
-                throw new ApplicationException("GuildID " + Id + " not found in database.");
+                throw new ApplicationException($"GuildID {Id} not found in database.");
             }
 
             var guildInfo = mySqlQuery.Rows[0];
@@ -73,15 +74,17 @@ public partial class WcGuild
             CYear = guildInfo.As<short>("guild_cYear");
             CMonth = guildInfo.As<byte>("guild_cMonth");
             CDay = guildInfo.As<byte>("guild_cDay");
-            for (var i = 0; i <= 9; i++)
+            for(var i = 0; i <= 9; i++)
             {
-                Ranks[i] = guildInfo.As<string>("guild_rank" + i);
-                RankRights[i] = guildInfo.As<uint>("guild_rank" + i + "_Rights");
+                Ranks[i] = guildInfo.As<string>($"guild_rank{i}");
+                RankRights[i] = guildInfo.As<uint>($"guild_rank{i}_Rights");
             }
 
             mySqlQuery.Clear();
-            _clusterServiceLocator.WorldCluster.GetCharacterDatabase().Query("SELECT char_guid FROM characters WHERE char_guildId = " + Id + ";", ref mySqlQuery);
-            foreach (DataRow memberInfo in mySqlQuery.Rows)
+            _clusterServiceLocator.WorldCluster
+                .GetCharacterDatabase()
+                .Query($"SELECT char_guid FROM characters WHERE char_guildId = {Id};", ref mySqlQuery);
+            foreach(DataRow memberInfo in mySqlQuery.Rows)
             {
                 Members.Add(guildInfo.As<ulong>("char_guid"));
             }
@@ -89,12 +92,10 @@ public partial class WcGuild
             _clusterServiceLocator.WcGuild.GuilDs.Add(Id, this);
         }
 
-        private bool _disposedValue; // To detect redundant calls
-
         // IDisposable
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if(!_disposedValue)
             {
                 // TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
                 // TODO: set large fields to null.

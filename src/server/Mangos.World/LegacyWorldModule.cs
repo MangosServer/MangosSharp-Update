@@ -23,7 +23,6 @@ using Mangos.World.AI;
 using Mangos.World.Auction;
 using Mangos.World.Battlegrounds;
 using Mangos.World.DataStores;
-using Mangos.World.Globals;
 using Mangos.World.Gossip;
 using Mangos.World.Handlers;
 using Mangos.World.Loots;
@@ -31,9 +30,9 @@ using Mangos.World.Maps;
 using Mangos.World.Network;
 using Mangos.World.Objects;
 using Mangos.World.Player;
-using Mangos.World.Server;
 using Mangos.World.Social;
 using Mangos.World.Spells;
+using Mangos.World.TimerBasedEvents;
 using Mangos.World.Warden;
 using Mangos.World.Weather;
 using Mangos.Zip;
@@ -41,6 +40,7 @@ using Functions = Mangos.Common.Legacy.Globals.Functions;
 using NativeMethods = Mangos.Common.Legacy.NativeMethods;
 
 namespace Mangos.World;
+
 public sealed class LegacyWorldModule : Module
 {
     protected override void Load(ContainerBuilder builder)
@@ -57,7 +57,7 @@ public sealed class LegacyWorldModule : Module
         builder.RegisterType<WS_Battlegrounds>().As<WS_Battlegrounds>().SingleInstance();
         builder.RegisterType<WS_DBCDatabase>().As<WS_DBCDatabase>().SingleInstance();
         builder.RegisterType<WS_DBCLoad>().As<WS_DBCLoad>().SingleInstance();
-        builder.RegisterType<Packets>().As<Packets>().SingleInstance();
+        builder.RegisterType<Packets.Packets>().As<Packets.Packets>().SingleInstance();
         builder.RegisterType<WS_GuardGossip>().As<WS_GuardGossip>().SingleInstance();
         builder.RegisterType<WS_Loot>().As<WS_Loot>().SingleInstance();
         builder.RegisterType<WS_Maps>().As<WS_Maps>().SingleInstance();
@@ -75,6 +75,7 @@ public sealed class LegacyWorldModule : Module
         builder.RegisterType<WS_Commands>().As<WS_Commands>().SingleInstance();
         builder.RegisterType<WS_Handlers>().As<WS_Handlers>().SingleInstance();
         builder.RegisterType<WS_Handlers_Battleground>().As<WS_Handlers_Battleground>().SingleInstance();
+        builder.RegisterType<WS_Battlegrounds>().As<WS_Battlegrounds>().SingleInstance();
         builder.RegisterType<WS_Handlers_Chat>().As<WS_Handlers_Chat>().SingleInstance();
         builder.RegisterType<WS_Handlers_Gamemaster>().As<WS_Handlers_Gamemaster>().SingleInstance();
         builder.RegisterType<WS_Handlers_Instance>().As<WS_Handlers_Instance>().SingleInstance();

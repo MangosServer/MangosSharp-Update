@@ -319,7 +319,7 @@ public class CreatureAI_Onyxia : WS_Creatures_AI.BossAI
                 }
         }
 
-        CurrentWaypoint += 1;
+        CurrentWaypoint++;
         if (CurrentWaypoint > 12)
         {
             CurrentWaypoint = 3;

@@ -25,10 +25,9 @@ public partial class WS_Creatures_AI
 {
     public class GuardAI : DefaultAI
     {
-        public GuardAI(ref WS_Creatures.CreatureObject Creature)
-            : base(ref Creature)
+        public GuardAI(ref WS_Creatures.CreatureObject Creature) : base(ref Creature)
         {
-            if (Creature is null)
+            if(Creature is null)
             {
                 throw new ArgumentNullException(nameof(Creature));
             }
@@ -38,7 +37,7 @@ public partial class WS_Creatures_AI
 
         public void OnEmote(int emote)
         {
-            switch (emote)
+            switch(emote)
             {
                 case 58:
                     aiCreature?.DoEmote(2);
@@ -60,6 +59,7 @@ public partial class WS_Creatures_AI
                 case 77:
                     aiCreature?.DoEmote(25);
                     break;
+
                 default:
                     break;
             }

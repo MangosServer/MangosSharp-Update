@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System;
 using System.Collections.Generic;
 
 namespace Mangos.World.Loots;
@@ -24,9 +25,8 @@ public partial class WS_Loot
 {
     public class LootGroup
     {
-        public List<LootStoreItem> ExplicitlyChanced;
-
         public List<LootStoreItem> EqualChanced;
+        public List<LootStoreItem> ExplicitlyChanced;
 
         public LootGroup()
         {
@@ -36,13 +36,31 @@ public partial class WS_Loot
 
         public void AddItem(ref LootStoreItem Item)
         {
-            if (Item.Chance != 0f)
+            if(Item is null)
+            {
+                throw new ArgumentNullException(nameof(Item));
+            }
+
+            if(Item.Chance != 0f)
             {
                 ExplicitlyChanced.Add(Item);
-            }
-            else
+            } else
             {
                 EqualChanced.Add(Item);
+            }
+        }
+
+        public void Process(ref LootObject Loot)
+        {
+            if(Loot is null)
+            {
+                throw new ArgumentNullException(nameof(Loot));
+            }
+
+            var Item = Roll();
+            if(Item != null)
+            {
+                Loot.Items.Add(new LootItem(ref Item));
             }
         }
 
@@ -50,32 +68,25 @@ public partial class WS_Loot
         {
             checked
             {
-                if (ExplicitlyChanced.Count > 0)
+                if(ExplicitlyChanced.Count > 0)
                 {
-                    for (var i = 0; i <= ExplicitlyChanced.Count - 1; i++)
+                    for(var i = 0; i <= (ExplicitlyChanced.Count - 1); i++)
                     {
-                        if (ExplicitlyChanced[i].Chance >= 100f)
+                        if(ExplicitlyChanced[i].Chance >= 100f)
                         {
                             return ExplicitlyChanced[i];
                         }
                         var rollChance = (float)(WorldServiceLocator.WorldServer.Rnd.NextDouble() * 100.0);
                         rollChance -= ExplicitlyChanced[i].Chance;
-                        if (rollChance <= 0f)
+                        if(rollChance <= 0f)
                         {
                             return ExplicitlyChanced[i];
                         }
                     }
                 }
-                return EqualChanced.Count > 0 ? EqualChanced[WorldServiceLocator.WorldServer.Rnd.Next(0, EqualChanced.Count)] : null;
-            }
-        }
-
-        public void Process(ref LootObject Loot)
-        {
-            var Item = Roll();
-            if (Item != null)
-            {
-                Loot.Items.Add(new LootItem(ref Item));
+                return (EqualChanced.Count > 0)
+                    ? EqualChanced[WorldServiceLocator.WorldServer.Rnd.Next(0, EqualChanced.Count)]
+                    : null;
             }
         }
     }

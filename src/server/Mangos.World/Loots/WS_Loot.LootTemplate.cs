@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System;
 using System.Collections.Generic;
 
 namespace Mangos.World.Loots;
@@ -24,9 +25,8 @@ public partial class WS_Loot
 {
     public class LootTemplate
     {
-        public List<LootStoreItem> Items;
-
         public Dictionary<byte, LootGroup> Groups;
+        public List<LootStoreItem> Items;
 
         public LootTemplate()
         {
@@ -36,15 +36,21 @@ public partial class WS_Loot
 
         public void AddItem(ref LootStoreItem Item)
         {
-            switch (Item.Group)
+            if(Item is null)
+            {
+                throw new ArgumentNullException(nameof(Item));
+            }
+
+            switch(Item.Group)
             {
                 case > 0 when Item.MinCountOrRef > 0:
-                    if (!Groups.ContainsKey(Item.Group))
+                    if(!Groups.ContainsKey(Item.Group))
                     {
                         Groups.Add(Item.Group, new LootGroup());
                     }
                     Groups[Item.Group].AddItem(ref Item);
                     break;
+
                 default:
                     Items.Add(Item);
                     break;
@@ -53,9 +59,14 @@ public partial class WS_Loot
 
         public void Process(ref LootObject Loot, byte GroupID)
         {
-            if (GroupID > 0)
+            if(Loot is null)
             {
-                if (Groups.ContainsKey(GroupID))
+                throw new ArgumentNullException(nameof(Loot));
+            }
+
+            if(GroupID > 0)
+            {
+                if(Groups.ContainsKey(GroupID))
                 {
                     Groups[GroupID].Process(ref Loot);
                 }
@@ -63,25 +74,25 @@ public partial class WS_Loot
             }
             checked
             {
-                for (var i = 0; i <= Items.Count - 1; i++)
+                for(var i = 0; i <= (Items.Count - 1); i++)
                 {
-                    if (!Items[i].Roll())
+                    if(!Items[i].Roll())
                     {
                         continue;
                     }
-                    if (Items[i].MinCountOrRef < 0)
+                    if(Items[i].MinCountOrRef < 0)
                     {
-                        var Referenced = WorldServiceLocator.WSLoot.LootTemplates_Reference.GetLoot(-Items[i].MinCountOrRef);
-                        if (Referenced != null)
+                        var Referenced = WorldServiceLocator.WSLoot.LootTemplates_Reference
+                            .GetLoot(-Items[i].MinCountOrRef);
+                        if(Referenced != null)
                         {
                             int maxCount = Items[i].MaxCount;
-                            for (var j = 1; j <= maxCount; j++)
+                            for(var j = 1; j <= maxCount; j++)
                             {
                                 Referenced.Process(ref Loot, Items[i].Group);
                             }
                         }
-                    }
-                    else
+                    } else
                     {
                         int index;
                         List<LootStoreItem> items2;
@@ -92,7 +103,7 @@ public partial class WS_Loot
                         items.Add(item);
                     }
                 }
-                foreach (var group in Groups)
+                foreach(var group in Groups)
                 {
                     group.Value.Process(ref Loot);
                 }

@@ -17,6 +17,7 @@
 //
 
 using Mangos.World.Player;
+using System;
 
 namespace Mangos.World.Objects;
 
@@ -24,19 +25,37 @@ public class TBaseTalk
 {
     public virtual void OnGossipHello(ref WS_PlayerData.CharacterObject objCharacter, ulong cGUID)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
     }
 
     public virtual void OnGossipSelect(ref WS_PlayerData.CharacterObject objCharacter, ulong cGUID, int selected)
     {
-    }
-
-    public virtual int OnQuestStatus(ref WS_PlayerData.CharacterObject objCharacter, ulong cGUID)
-    {
-        return 0;
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
     }
 
     public virtual bool OnQuestHello(ref WS_PlayerData.CharacterObject objCharacter, ulong cGUID)
     {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
         return true;
+    }
+
+    public virtual int OnQuestStatus(ref WS_PlayerData.CharacterObject objCharacter, ulong cGUID)
+    {
+        if(objCharacter is null)
+        {
+            throw new ArgumentNullException(nameof(objCharacter));
+        }
+
+        return 0;
     }
 }

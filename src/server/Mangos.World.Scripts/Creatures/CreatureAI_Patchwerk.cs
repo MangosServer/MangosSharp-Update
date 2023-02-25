@@ -237,7 +237,7 @@ public class CreatureAI_Patchwerk : WS_Creatures_AI.BossAI
                 }
         }
 
-        CurrentWaypoint += 1;
+        CurrentWaypoint++;
         if (CurrentWaypoint > 11)
         {
             CurrentWaypoint = 3;

@@ -82,7 +82,7 @@ public class CreatureAI_The_Plains_Vision : WS_Creatures_AI.TBaseAI
             return;
         }
 
-        NextWaypoint = aiCreature.MoveTo(Waypoints[CurrentWaypoint].x, Waypoints[CurrentWaypoint].y, Waypoints[CurrentWaypoint].z) + Waypoints[CurrentWaypoint].waittime;
-        CurrentWaypoint += 1;
+        NextWaypoint = aiCreature.MoveTo(Waypoints[CurrentWaypoint].x, Waypoints[CurrentWaypoint].y, Waypoints[CurrentWaypoint].z) + Waypoints[CurrentWaypoint].waitTime;
+        CurrentWaypoint++;
     }
 }

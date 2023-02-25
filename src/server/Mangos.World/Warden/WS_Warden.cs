@@ -16,7 +16,6 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using Mangos.World.Globals;
 using Mangos.World.Handlers;
 using Mangos.World.Player;
 using System;
@@ -29,15 +28,7 @@ public partial class WS_Warden
 {
     public WardenMaiev Maiev;
 
-    public WS_Warden()
-    {
-        Maiev = new WardenMaiev();
-    }
-
-    private int VarPtr(ref object obj)
-    {
-        return GCHandle.Alloc(RuntimeHelpers.GetObjectValue(obj), GCHandleType.Pinned).AddrOfPinnedObject().ToInt32();
-    }
+    public WS_Warden() { Maiev = new WardenMaiev(); }
 
     private int ByteArrPtr(ref byte[] arr)
     {
@@ -46,25 +37,34 @@ public partial class WS_Warden
         return pData;
     }
 
+    private void Free(int ptr)
+    {
+        var tmpHandle = Marshal.ReadInt32(new IntPtr(checked(ptr - 4)));
+        NativeMethods.GlobalUnlock(tmpHandle, string.Empty);
+        Marshal.FreeHGlobal(new IntPtr(tmpHandle));
+    }
+
     private int Malloc(int length)
     {
         checked
         {
             var tmpHandle = Marshal.AllocHGlobal(length + 4).ToInt32();
-            var lockedHandle = NativeMethods.GlobalLock(tmpHandle, "") + 4;
+            var lockedHandle = NativeMethods.GlobalLock(tmpHandle, string.Empty) + 4;
             Marshal.WriteInt32(new IntPtr(lockedHandle - 4), tmpHandle);
             return lockedHandle;
         }
     }
 
-    private void Free(int ptr)
+    private int VarPtr(ref object obj)
     {
-        var tmpHandle = Marshal.ReadInt32(new IntPtr(checked(ptr - 4)));
-        NativeMethods.GlobalUnlock(tmpHandle, "");
-        Marshal.FreeHGlobal(new IntPtr(tmpHandle));
+        return GCHandle.Alloc(RuntimeHelpers.GetObjectValue(obj), GCHandleType.Pinned)
+            .AddrOfPinnedObject()
+            .ToInt32();
     }
 
-    public void SendWardenPacket(ref WS_PlayerData.CharacterObject objCharacter, ref Packets.PacketClass Packet)
+    public void SendWardenPacket(
+        ref WS_PlayerData.CharacterObject objCharacter,
+        ref Packets.Packets.PacketClass Packet)
     {
         var b = new byte[checked(Packet.Data.Length - 4 - 1 + 1)];
         Buffer.BlockCopy(Packet.Data, 4, b, 0, b.Length);

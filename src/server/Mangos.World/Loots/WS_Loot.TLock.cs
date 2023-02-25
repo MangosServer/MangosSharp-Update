@@ -16,24 +16,35 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System;
+
 namespace Mangos.World.Loots;
 
 public partial class WS_Loot
 {
     public class TLock
     {
-        public byte[] KeyType;
-
         public int[] Keys;
-
-        public short RequiredMiningSkill;
+        public byte[] KeyType;
 
         public short RequiredLockingSkill;
 
+        public short RequiredMiningSkill;
+
         public TLock(byte[] KeyType_, int[] Keys_, short ReqMining, short ReqLock)
         {
-            KeyType = new byte[5];
-            Keys = new int[5];
+            if(KeyType_ is null)
+            {
+                throw new ArgumentNullException(nameof(KeyType_));
+            }
+
+            if(Keys_ is null)
+            {
+                throw new ArgumentNullException(nameof(Keys_));
+            }
+
+            KeyType = (new byte[5]);
+            Keys = (new int[5]);
             byte i = 0;
             do
             {
@@ -43,8 +54,7 @@ public partial class WS_Loot
                 {
                     i = (byte)unchecked((uint)(i + 1));
                 }
-            }
-            while (i <= 4u);
+            } while (i <= 4u);
             RequiredMiningSkill = ReqMining;
             RequiredLockingSkill = ReqLock;
         }

@@ -18,59 +18,163 @@
 
 using Mangos.Common.Enums.Global;
 using Mangos.Common.Globals;
-using Mangos.World.Globals;
 using Mangos.World.Network;
-using System.Collections.Generic;
+using System;
 
 namespace Mangos.World.Handlers;
 
 public class WS_Handlers_Battleground
 {
-    public void On_CMSG_BATTLEMASTER_HELLO(ref Packets.PacketClass packet, ref WS_Network.ClientClass client)
+    public void On_CMSG_BATTLEFIELD_LIST(ref Packets.Packets.PacketClass packet, ref WS_Network.ClientClass client)
     {
-        if (checked(packet.Data.Length - 1) < 13)
+        if(packet is null)
+        {
+            throw new ArgumentNullException(nameof(packet));
+        }
+
+        if(client is null)
+        {
+            throw new ArgumentNullException(nameof(client));
+        }
+
+        packet.GetInt16();
+        var GUID = packet.GetUInt64();
+        var BGType = WorldServiceLocator.WSDBCDatabase.Battlemasters[
+            WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].ID];
+        if(WorldServiceLocator.WSDBCDatabase.Battlegrounds.ContainsKey(BGType))
+        {
+            WorldServiceLocator.WorldServer.Log
+                .WriteLine(
+                    LogType.WARNING,
+                    "[{0}:{1}] CMSG_BATTLEMASTER_LIST [{2:X}]",
+                    client.IP,
+                    client.Port,
+                    GUID);
+            foreach(var Instance in WorldServiceLocator.WorldServer.ClsWorldServer.Cluster.BattlefieldList(BGType))
+            {
+                packet.GetInt32();
+            }
+            packet.GetUInt64();
+            packet.GetInt32();
+            packet.GetInt8();
+        }
+        //client.Send(ref packet);
+    }
+
+    public void On_CMSG_BATTLEMASTER_HELLO(
+        ref Packets.Packets.PacketClass packet,
+        ref WS_Network.ClientClass client)
+    {
+        if(packet is null)
+        {
+            throw new ArgumentNullException(nameof(packet));
+        }
+
+        if(client is null)
+        {
+            throw new ArgumentNullException(nameof(client));
+        }
+
+        if(checked(packet.Data.Length - 1) < 255) //13
         {
             return;
         }
         packet.GetInt16();
         var GUID = packet.GetUInt64();
-        WorldServiceLocator.WorldServer.Log.WriteLine(LogType.DEBUG, "[{0}:{1}] CMSG_BATTLEMASTER_HELLO [{2:X}]", client.IP, client.Port, GUID);
-        if (!WorldServiceLocator.WorldServer.WORLD_CREATUREs.ContainsKey(GUID) || (WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].CreatureInfo.cNpcFlags & 0x800) == 0 || !WorldServiceLocator.WSDBCDatabase.Battlemasters.ContainsKey(WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].ID))
+        WorldServiceLocator.WorldServer.Log
+            .WriteLine(LogType.DEBUG, "[{0}:{1}] CMSG_BATTLEMASTER_HELLO [{2:X}]", client.IP, client.Port, GUID);
+        if(!WorldServiceLocator.WorldServer.WORLD_CREATUREs.ContainsKey(GUID) ||
+            ((WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].CreatureInfo.cNpcFlags & 0x800) == 0) ||
+            !WorldServiceLocator.WSDBCDatabase.Battlemasters
+                .ContainsKey(WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].ID))
         {
             return;
         }
-        var BGType = WorldServiceLocator.WSDBCDatabase.Battlemasters[WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].ID];
-        if (!WorldServiceLocator.WSDBCDatabase.Battlegrounds.ContainsKey(BGType))
+        var BGType = WorldServiceLocator.WSDBCDatabase.Battlemasters[
+            WorldServiceLocator.WorldServer.WORLD_CREATUREs[GUID].ID];
+        if(!WorldServiceLocator.WSDBCDatabase.Battlegrounds.ContainsKey(BGType))
         {
             return;
         }
-        if (WorldServiceLocator.WSDBCDatabase.Battlegrounds[BGType].MinLevel > (uint)client.Character.Level || WorldServiceLocator.WSDBCDatabase.Battlegrounds[BGType].MaxLevel < (uint)client.Character.Level)
+        if((WorldServiceLocator.WSDBCDatabase.Battlegrounds[BGType].MinLevel > ((uint)client.Character.Level)) ||
+            (WorldServiceLocator.WSDBCDatabase.Battlegrounds[BGType].MaxLevel < ((uint)client.Character.Level)))
         {
-            WorldServiceLocator.Functions.SendMessageNotification(ref client, "You don't meet Battleground level requirements");
+            WorldServiceLocator.Functions
+                .SendMessageNotification(ref client, "You don't meet Battleground level requirements");
             return;
         }
-        Packets.PacketClass response = new(Opcodes.SMSG_BATTLEFIELD_LIST);
-        try
+        if(WorldServiceLocator.WorldServer.CHARACTERs.ContainsKey(GUID))
         {
-            response.AddUInt64(client.Character.GUID);
-            response.AddInt32(BGType);
-            response.AddInt8(0);
-            var Battlegrounds = WorldServiceLocator.WorldServer.ClsWorldServer.Cluster.BattlefieldList(BGType);
-            response.AddInt32(Battlegrounds.Count);
-            foreach (var Instance in Battlegrounds)
+            Packets.Packets.PacketClass response = new(Opcodes.SMSG_BATTLEFIELD_LIST);
+            if(response == null)
             {
-                response.AddInt32(Instance);
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(
+                        LogType.DEBUG,
+                        "[{0}:{1}] CMSG_BATTLEMASTER_HELLO [{2:X}] RESPONSE NULL",
+                        client.IP,
+                        client.Port,
+                        GUID);
+                return;
             }
-            client.Send(ref response);
-        }
-        finally
-        {
-            response.Dispose();
+
+            try
+            {
+                response.AddUInt64(client.Character.GUID);
+                response.AddInt32(BGType);
+                response.AddInt8(0);
+                var Battlegrounds = WorldServiceLocator.WorldServer.ClsWorldServer.Cluster.BattlefieldList(BGType);
+                response.AddInt32(Battlegrounds.Count);
+                if((Battlegrounds == null) || (Battlegrounds.Count == 0))
+                {
+                    WorldServiceLocator.WorldServer.Log
+                        .WriteLine(
+                            LogType.DEBUG,
+                            "[{0}:{1}] CMSG_BATTLEMASTER_HELLO [{2:X}] BATTLEGROUNDS NULL",
+                            client.IP,
+                            client.Port,
+                            GUID);
+                    return;
+                }
+
+                foreach(var Instance in Battlegrounds)
+                {
+                    response.AddInt32(Instance);
+                }
+                client.Send(ref response);
+            } catch(Exception ex)
+            {
+                WorldServiceLocator.WorldServer.Log
+                    .WriteLine(
+                        LogType.WARNING,
+                        "SMSG_BATTLEFIELD_LIST Exception  {0} : {1} : {2} : {3} : {4} : {5}",
+                        client,
+                        client.IP,
+                        client.Port,
+                        response,
+                        BGType,
+                        ex);
+            } finally
+            {
+                response.Dispose();
+            }
         }
     }
 
-    public void On_MSG_BATTLEGROUND_PLAYER_POSITIONS(ref Packets.PacketClass packet, ref WS_Network.ClientClass client)
+    public void On_MSG_BATTLEGROUND_PLAYER_POSITIONS(
+        ref Packets.Packets.PacketClass packet,
+        ref WS_Network.ClientClass client)
     {
+        if(packet is null)
+        {
+            throw new ArgumentNullException(nameof(packet));
+        }
+
+        if(client is null)
+        {
+            throw new ArgumentNullException(nameof(client));
+        }
+
         packet.GetUInt32();
     }
 }

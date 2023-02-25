@@ -18,42 +18,34 @@
 
 using Mangos.Common.Enums.Misc;
 using System;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace Mangos.World.Handlers;
 
 [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
 public class ChatCommandAttribute : Attribute
 {
-    public string GetcmdName { get; private set; }
-
-    public void SetcmdName(string value)
+    public ChatCommandAttribute(
+        string cmdName,
+        string cmdHelp = "No information available.",
+        AccessLevel cmdAccess = AccessLevel.GameMaster)
     {
-        GetcmdName = value;
-    }
-
-    public string GetcmdHelp { get; private set; }
-
-    public void SetcmdHelp(string value)
-    {
-        GetcmdHelp = value;
-    }
-
-    public AccessLevel GetcmdAccess { get; private set; }
-
-    public void SetcmdAccess(AccessLevel value)
-    {
-        GetcmdAccess = value;
-    }
-
-    public ChatCommandAttribute(string cmdName, string cmdHelp = "No information available.", AccessLevel cmdAccess = AccessLevel.GameMaster)
-    {
-        SetcmdName("");
+        SetcmdName(string.Empty);
         SetcmdHelp("No information available.");
         SetcmdAccess(AccessLevel.GameMaster);
         SetcmdName(cmdName);
         SetcmdHelp(cmdHelp);
         SetcmdAccess(cmdAccess);
     }
+
+    public void SetcmdAccess(AccessLevel value) { GetcmdAccess = value; }
+
+    public void SetcmdHelp(string value) { GetcmdHelp = value; }
+
+    public void SetcmdName(string value) { GetcmdName = value; }
+
+    public AccessLevel GetcmdAccess { get; private set; }
+
+    public string GetcmdHelp { get; private set; }
+
+    public string GetcmdName { get; private set; }
 }

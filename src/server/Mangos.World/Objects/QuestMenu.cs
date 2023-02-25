@@ -22,13 +22,12 @@ namespace Mangos.World.Objects;
 
 public class QuestMenu
 {
+    public ArrayList Icons;
     public ArrayList IDs;
 
-    public ArrayList Names;
-
-    public ArrayList Icons;
-
     public ArrayList Levels;
+
+    public ArrayList Names;
 
     public QuestMenu()
     {
@@ -40,9 +39,9 @@ public class QuestMenu
 
     public void AddMenu(string QuestName, short ID, short Level, byte Icon = 0)
     {
-        Names.Add(QuestName);
-        IDs.Add(ID);
-        Icons.Add(Icon);
-        Levels.Add(Level);
+        Names?.Add(QuestName);
+        IDs?.Add(ID);
+        Icons?.Add(Icon);
+        Levels?.Add(Level);
     }
 }

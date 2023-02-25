@@ -44,11 +44,11 @@ public sealed class TcpServer
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            HandleClientConnection(await socket.AcceptAsync(cancellationToken), cancellationToken);
+            HandleClientConnectionAsync(await socket.AcceptAsync(cancellationToken), cancellationToken);
         }
     }
 
-    private async void HandleClientConnection(Socket socket, CancellationToken cancellationToken)
+    private async void HandleClientConnectionAsync(Socket socket, CancellationToken cancellationToken)
     {
         if (socket.RemoteEndPoint is not IPEndPoint endpoint)
         {
@@ -76,6 +76,6 @@ public sealed class TcpServer
             socket.Dispose();
         }
 
-        logger.Information($"Tcp client was disconected");
+        logger.Information("Tcp client was disconected");
     }
 }

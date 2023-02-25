@@ -18,7 +18,7 @@
 
 using Mangos.World.Objects;
 using Mangos.World.Player;
-using System.Collections.Generic;
+using System;
 using System.Threading;
 
 namespace Mangos.World.AI;
@@ -27,27 +27,37 @@ public partial class WS_Creatures_AI
 {
     public class BossAI : DefaultAI
     {
-        public BossAI(ref WS_Creatures.CreatureObject Creature)
-            : base(ref Creature)
+        public BossAI(ref WS_Creatures.CreatureObject Creature) : base(ref Creature)
         {
+            if(Creature is null)
+            {
+                throw new ArgumentNullException(nameof(Creature));
+            }
+        }
+
+        public override void DoThink()
+        {
+            base.DoThink();
+            new Thread(OnThink) { Name = "Boss Thinking" }.Start();
         }
 
         public override void OnEnterCombat()
         {
             base.OnEnterCombat();
-            foreach (var Unit in aiHateTable)
+            foreach(var Unit in aiHateTable)
             {
-                if (Unit.Key is not WS_PlayerData.CharacterObject)
+                if(Unit.Key is not WS_PlayerData.CharacterObject)
                 {
                     continue;
                 }
-                WS_PlayerData.CharacterObject characterObject = (WS_PlayerData.CharacterObject)Unit.Key;
-                if (characterObject.IsInGroup)
+                var characterObject = (WS_PlayerData.CharacterObject)Unit.Key;
+                if(characterObject.IsInGroup)
                 {
-                    var array = characterObject.Group.LocalMembers.ToArray();
-                    foreach (var member in array)
+                    foreach(var member in characterObject.Group.LocalMembers.ToArray())
                     {
-                        if (WorldServiceLocator.WorldServer.CHARACTERs.ContainsKey(member) && WorldServiceLocator.WorldServer.CHARACTERs[member].MapID == characterObject.MapID && WorldServiceLocator.WorldServer.CHARACTERs[member].instance == characterObject.instance)
+                        if(WorldServiceLocator.WorldServer.CHARACTERs.ContainsKey(member) &&
+                            (WorldServiceLocator.WorldServer.CHARACTERs[member].MapID == characterObject.MapID) &&
+                            (WorldServiceLocator.WorldServer.CHARACTERs[member].instance == characterObject.instance))
                         {
                             aiHateTable.Add(WorldServiceLocator.WorldServer.CHARACTERs[member], 0);
                         }
@@ -55,15 +65,6 @@ public partial class WS_Creatures_AI
                     break;
                 }
             }
-        }
-
-        public override void DoThink()
-        {
-            base.DoThink();
-            new Thread(OnThink)
-            {
-                Name = "Boss Thinking"
-            }.Start();
         }
 
         public virtual void OnThink()

@@ -37,22 +37,24 @@ public sealed class LegacyClusterModule : Module
         builder.RegisterType<ClientClass>().AsSelf().InstancePerLifetimeScope();
 
         builder.RegisterType<MangosGlobalConstants>().As<MangosGlobalConstants>().SingleInstance();
-        builder.RegisterType<Common.Legacy.Globals.Functions>().As<Common.Legacy.Globals.Functions>().SingleInstance();
+        builder.RegisterType<Common.Legacy.Globals.Functions>()
+            .As<Common.Legacy.Globals.Functions>()
+            .SingleInstance();
         builder.RegisterType<Common.Legacy.Functions>().As<Common.Legacy.Functions>().SingleInstance();
         builder.RegisterType<ZipService>().As<ZipService>().SingleInstance();
         builder.RegisterType<NativeMethods>().As<NativeMethods>().SingleInstance();
         builder.RegisterType<LegacyWorldCluster>().As<LegacyWorldCluster>().SingleInstance();
         builder.RegisterType<WorldServerClass>().As<WorldServerClass>().As<ICluster>().SingleInstance();
-        builder.RegisterType<WsDbcDatabase>().As<WsDbcDatabase>().SingleInstance();
-        builder.RegisterType<WsDbcLoad>().As<WsDbcLoad>().SingleInstance();
+        builder.RegisterType<WS_DBCDatabase>().As<WS_DBCDatabase>().SingleInstance();
+        builder.RegisterType<WS_DBCLoad>().As<WS_DBCLoad>().SingleInstance();
         builder.RegisterType<Globals.Functions>().As<Globals.Functions>().SingleInstance();
         builder.RegisterType<Packets>().As<Packets>().SingleInstance();
-        builder.RegisterType<WcGuild>().As<WcGuild>().SingleInstance();
+        builder.RegisterType<WC_Guild>().As<WC_Guild>().SingleInstance();
         builder.RegisterType<WcNetwork>().As<WcNetwork>().SingleInstance();
-        builder.RegisterType<WcHandlers>().As<WcHandlers>().SingleInstance();
-        builder.RegisterType<WcHandlersAuth>().As<WcHandlersAuth>().SingleInstance();
-        builder.RegisterType<WcHandlersBattleground>().As<WcHandlersBattleground>().SingleInstance();
-        builder.RegisterType<WcHandlersChat>().As<WcHandlersChat>().SingleInstance();
+        builder.RegisterType<WC_Handlers>().As<WC_Handlers>().SingleInstance();
+        builder.RegisterType<WC_Handlers_Auth>().As<WC_Handlers_Auth>().SingleInstance();
+        builder.RegisterType<WC_Handlers_Battleground>().As<WC_Handlers_Battleground>().SingleInstance();
+        builder.RegisterType<WC_Handlers_Chat>().As<WC_Handlers_Chat>().SingleInstance();
         builder.RegisterType<WcHandlersGroup>().As<WcHandlersGroup>().SingleInstance();
         builder.RegisterType<WcHandlersGuild>().As<WcHandlersGuild>().SingleInstance();
         builder.RegisterType<WcHandlersMisc>().As<WcHandlersMisc>().SingleInstance();
@@ -62,7 +64,8 @@ public sealed class LegacyClusterModule : Module
         builder.RegisterType<WsHandlerChannels>().As<WsHandlerChannels>().SingleInstance();
         builder.RegisterType<WcHandlerCharacter>().As<WcHandlerCharacter>().SingleInstance();
 
-        builder.RegisterType<ClusterServiceLocator>().As<ClusterServiceLocator>()
+        builder.RegisterType<ClusterServiceLocator>()
+            .As<ClusterServiceLocator>()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies)
             .SingleInstance();
     }

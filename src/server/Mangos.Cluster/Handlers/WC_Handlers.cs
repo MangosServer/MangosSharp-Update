@@ -24,16 +24,14 @@ using Microsoft.VisualBasic;
 
 namespace Mangos.Cluster.Handlers;
 
-public class WcHandlers
+public class WC_Handlers
 {
     private readonly ClusterServiceLocator _clusterServiceLocator;
 
-    public WcHandlers(ClusterServiceLocator clusterServiceLocator)
-    {
-        _clusterServiceLocator = clusterServiceLocator;
-    }
+    public WC_Handlers(ClusterServiceLocator clusterServiceLocator)
+    { _clusterServiceLocator = clusterServiceLocator ?? throw new System.ArgumentNullException(nameof(clusterServiceLocator)); }
 
-    public void IntializePacketHandlers()
+    public void InitializePacketHandlers()
     {
         // NOTE: These opcodes are not used in any way
         // _WorldCluster.PacketHandlers[OPCODES.CMSG_MOVE_TIME_SKIPPED] = AddressOf On_CMSG_MOVE_TIME_SKIPPED
@@ -62,7 +60,7 @@ public class WcHandlers
         _clusterServiceLocator.WorldCluster.GetPacketHandlers()[Opcodes.CMSG_CANCEL_TRADE] = _clusterServiceLocator.WcHandlersMisc.On_CMSG_CANCEL_TRADE;
         _clusterServiceLocator.WorldCluster.GetPacketHandlers()[Opcodes.CMSG_LOGOUT_CANCEL] = _clusterServiceLocator.WcHandlersMisc.On_CMSG_LOGOUT_CANCEL;
 
-        // NOTE: These opcodes below must be exluded form WorldServer
+        // NOTE: These opcodes below must be exluded from WorldServer
         _clusterServiceLocator.WorldCluster.GetPacketHandlers()[Opcodes.CMSG_PING] = _clusterServiceLocator.WcHandlersAuth.On_CMSG_PING;
         _clusterServiceLocator.WorldCluster.GetPacketHandlers()[Opcodes.CMSG_AUTH_SESSION] = _clusterServiceLocator.WcHandlersAuth.On_CMSG_AUTH_SESSION;
         _clusterServiceLocator.WorldCluster.GetPacketHandlers()[Opcodes.CMSG_CHAR_ENUM] = _clusterServiceLocator.WcHandlersAuth.On_CMSG_CHAR_ENUM;
@@ -159,22 +157,31 @@ public class WcHandlers
         // none
     }
 
-    public void OnUnhandledPacket(PacketClass packet, ClientClass client)
-    {
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Unhandled Packet]", client.IP, client.Port, packet.OpCode);
-    }
-
     public void OnClusterPacket(PacketClass packet, ClientClass client)
     {
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Redirected Packet]", client.IP, client.Port, packet.OpCode);
-        if (client.Character is null || client.Character.IsInWorld == false)
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Redirected Packet]", client.IP, client.Port, packet.OpCode);
+        if((client.Character is null) || (!client.Character.IsInWorld))
         {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "[{0}:{1}] Unknown Opcode 0x{2:X} [{2}], DataLen={4}", client.IP, client.Port, packet.OpCode, Constants.vbCrLf, packet.Length);
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(
+                    LogType.WARNING,
+                    "[{0}:{1}] Unknown Opcode 0x{2:X} [{2}], DataLen={4}",
+                    client.IP,
+                    client.Port,
+                    packet.OpCode,
+                    Constants.vbCrLf,
+                    packet.Length);
             _clusterServiceLocator.Packets.DumpPacket(packet.Data, client);
-        }
-        else
+        } else
         {
             client.Character.GetWorld.ClientPacket(client.Index, packet.Data);
         }
+    }
+
+    public void OnUnhandledPacket(PacketClass packet, ClientClass client)
+    {
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.WARNING, "[{0}:{1}] {2} [Unhandled Packet]", client.IP, client.Port, packet.OpCode);
     }
 }

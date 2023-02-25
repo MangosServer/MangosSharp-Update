@@ -71,7 +71,7 @@ public interface IWorld
     [Description("Update guild information.")]
     void GuildUpdate(ulong GUID, uint GuildID, byte GuildRank);
 
-    void BattlefieldCreate(int BattlefieldID, byte BattlefieldMapType, uint Map);
+    Task BattlefieldCreateAsync(int BattlefieldID, uint BattlefieldMapType, uint MapID);
 
     void BattlefieldDelete(int BattlefieldID);
 

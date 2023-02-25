@@ -21,21 +21,22 @@ using GameServer.Requests;
 
 namespace GameServer.Network;
 
-internal sealed class HandlerDispatcher<TRequest, THandler> : IHandlerDispatcher
-    where TRequest : IRequestMessage<TRequest>
+internal sealed class HandlerDispatcher<TRequest, THandler> : IHandlerDispatcher where TRequest : IRequestMessage<TRequest>
     where THandler : IHandler<TRequest>
 {
     private readonly THandler handler;
 
-    public HandlerDispatcher(THandler handler)
+    public HandlerDispatcher(THandler handler) { this.handler = handler; }
+
+    public Task<HandlerResult> ExecuteAsync(PacketReader reader)
     {
-        this.handler = handler;
+        if (reader is null)
+        {
+            throw new ArgumentNullException(nameof(reader));
+        }
+
+        return handler.ExecuteAsync(TRequest.Read(reader));
     }
 
     public Opcodes Opcode => TRequest.Opcode;
-
-    public Task<HandlerResult> ExectueAsync(PacketReader reader)
-    {
-        return handler.ExectueAsync(TRequest.Read(reader));
-    }
 }

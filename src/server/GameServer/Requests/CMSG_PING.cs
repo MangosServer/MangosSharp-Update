@@ -22,15 +22,17 @@ namespace GameServer.Requests;
 
 internal sealed class CMSG_PING : IRequestMessage<CMSG_PING>
 {
-    public required uint Payload { get; init; }
+    public static CMSG_PING Read(PacketReader reader)
+    {
+        if (reader is null)
+        {
+            throw new ArgumentNullException(nameof(reader));
+        }
+
+        return new CMSG_PING { Payload = reader.UInt32() };
+    }
 
     public static Opcodes Opcode => Opcodes.CMSG_PING;
 
-    public static CMSG_PING Read(PacketReader reader)
-    {
-        return new CMSG_PING()
-        {
-            Payload = reader.UInt32()
-        };
-    }
+    public uint Payload { get; init; }
 }

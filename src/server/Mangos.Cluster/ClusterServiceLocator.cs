@@ -30,29 +30,53 @@ namespace Mangos.Cluster;
 
 public class ClusterServiceLocator
 {
-    public MangosGlobalConstants GlobalConstants { get; set; }
-    public Functions CommonGlobalFunctions { get; set; }
     public Common.Legacy.Functions CommonFunctions { get; set; }
-    public ZipService GlobalZip { get; set; }
-    public NativeMethods NativeMethods { get; set; }
-    public LegacyWorldCluster WorldCluster { get; set; }
-    public WorldServerClass WorldServerClass { get; set; }
-    public WsDbcDatabase WsDbcDatabase { get; set; }
-    public WsDbcLoad WsDbcLoad { get; set; }
+
+    public Functions CommonGlobalFunctions { get; set; }
+
     public Globals.Functions Functions { get; set; }
+
+    public MangosGlobalConstants GlobalConstants { get; set; }
+
+    public ZipService GlobalZip { get; set; }
+
+    public NativeMethods NativeMethods { get; set; }
+
     public Packets Packets { get; set; }
-    public WcGuild WcGuild { get; set; }
-    public WcNetwork WcNetwork { get; set; }
-    public WcHandlers WcHandlers { get; set; }
-    public WcHandlersAuth WcHandlersAuth { get; set; }
-    public WcHandlersBattleground WcHandlersBattleground { get; set; }
-    public WcHandlersChat WcHandlersChat { get; set; }
-    public WcHandlersGroup WcHandlersGroup { get; set; }
-    public WcHandlersGuild WcHandlersGuild { get; set; }
-    public WcHandlersMisc WcHandlersMisc { get; set; }
-    public WcHandlersMovement WcHandlersMovement { get; set; }
-    public WcHandlersSocial WcHandlersSocial { get; set; }
-    public WcHandlersTickets WcHandlersTickets { get; set; }
-    public WsHandlerChannels WsHandlerChannels { get; set; }
+
+    public WC_Guild WcGuild { get; set; }
+
     public WcHandlerCharacter WcHandlerCharacter { get; set; }
+
+    public WC_Handlers WcHandlers { get; set; }
+
+    public WC_Handlers_Auth WcHandlersAuth { get; set; }
+
+    public WC_Handlers_Battleground WcHandlersBattleground { get; set; }
+
+    public WC_Handlers_Chat WcHandlersChat { get; set; }
+
+    public WcHandlersGroup WcHandlersGroup { get; set; }
+
+    public WcHandlersGuild WcHandlersGuild { get; set; }
+
+    public WcHandlersMisc WcHandlersMisc { get; set; }
+
+    public WcHandlersMovement WcHandlersMovement { get; set; }
+
+    public WcHandlersSocial WcHandlersSocial { get; set; }
+
+    public WcHandlersTickets WcHandlersTickets { get; set; }
+
+    public WcNetwork WcNetwork { get; set; }
+
+    public LegacyWorldCluster WorldCluster { get; set; }
+
+    public WorldServerClass WorldServerClass { get; set; }
+
+    public WS_DBCDatabase WsDbcDatabase { get; set; }
+
+    public WS_DBCLoad WsDbcLoad { get; set; }
+
+    public WsHandlerChannels WsHandlerChannels { get; set; }
 }

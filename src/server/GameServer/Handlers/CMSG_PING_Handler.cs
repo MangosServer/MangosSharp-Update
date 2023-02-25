@@ -24,13 +24,10 @@ namespace GameServer.Handlers;
 
 internal sealed class CMSG_PING_Handler : IHandler<CMSG_PING>
 {
-    public Task<HandlerResult> ExectueAsync(CMSG_PING request)
+    public Task<HandlerResult> ExecuteAsync(CMSG_PING request)
     {
-        var response = new SMSG_PONG
-        {
-            Payload = request.Payload
-        };
+        var response = new SMSG_PONG { Payload = request.Payload };
 
-        return HandlerResult.FromTask(response);
+        return HandlerResult.FromTaskAsync(response);
     }
 }

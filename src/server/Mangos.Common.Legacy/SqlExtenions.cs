@@ -33,8 +33,13 @@ public static class SqlExtenions
         return row == null || row[field] == null ? throw new Exception("Null data row.") : (T)Convert.ChangeType(row[field], typeof(T));
     }
 
+    /// <summary>
+    /// ToDo
+    /// </summary>
     /// <typeparam name="T1">Cast1</typeparam>
     /// <typeparam name="T2">Cast2</typeparam>
+    /// <param name="row"></param>
+    /// <param name="field"></param>
     public static T2 As<T1, T2>(this DataRow row, string field)
     {
         if (row == null || row[field] == null)

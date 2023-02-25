@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using Google.Protobuf.WellKnownTypes;
 using Mangos.Cluster.Globals;
 using Mangos.Common.Enums.Chat;
 using Mangos.Common.Enums.Global;
@@ -28,266 +29,127 @@ using System.Threading;
 
 namespace Mangos.Cluster.Network;
 
-public class WorldServerClass : ICluster
+public class WorldServerClass : ICluster, IDisposable
 {
     private readonly ClusterServiceLocator _clusterServiceLocator;
+    public Timer _mTimerPing;
 
     public bool MFlagStopListen;
-    private Timer _mTimerPing;
-
-    public WorldServerClass(ClusterServiceLocator clusterServiceLocator)
-    {
-        _clusterServiceLocator = clusterServiceLocator;
-    }
-
-    public void Start()
-    {
-        // Creating ping timer
-        _mTimerPing = new Timer(Ping, null, 0, 15000);
-    }
 
     public Dictionary<uint, IWorld> Worlds = new();
     public Dictionary<uint, WorldInfo> WorldsInfo = new();
 
-    public bool Connect(string uri, List<uint> maps, IWorld world)
+    public WorldServerClass(ClusterServiceLocator clusterServiceLocator)
+    { _clusterServiceLocator = clusterServiceLocator; }
+
+    public bool BattlefieldCheck(uint mapId)
     {
-        try
+        // Create map
+        if(!_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(mapId))
         {
-            Disconnect(uri, maps);
-            WorldInfo worldServerInfo = new();
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "Connected Map Server: {0}", uri);
-            lock (((ICollection)Worlds).SyncRoot)
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "[SERVER] Requesting battlefield map [{0}]", mapId);
+            IWorld parentMap = default;
+            WorldInfo parentMapInfo = null;
+
+            // Check if we got parent map
+            if(_clusterServiceLocator.WcNetwork.WorldServer.Worlds
+                    .ContainsKey((uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap) &&
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds[
+                    (uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap].InstanceCanCreate(
+                    (int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
             {
-                foreach (var map in maps)
-                {
-                    // NOTE: Password protected remoting
-                    Worlds[map] = world;
-                    WorldsInfo[map] = worldServerInfo;
-                }
+                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[
+                    (uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
+                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[
+                    (uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
+            } else if(_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(0U) &&
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U].InstanceCanCreate(
+                    (int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
+            {
+                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U];
+                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[0U];
+            } else if(_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(1U) &&
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U].InstanceCanCreate(
+                    (int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
+            {
+                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U];
+                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[1U];
             }
-        }
-        catch (Exception ex)
-        {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.CRITICAL, "Unable to reverse connect. [{0}]", ex.ToString());
-            return false;
+
+            if(parentMap is null)
+            {
+                _clusterServiceLocator.WorldCluster.Log
+                    .WriteLine(LogType.WARNING, "[SERVER] Requested battlefield map [{0}] can't be loaded", mapId);
+                return false;
+            }
+
+            parentMap.InstanceCreateAsync(mapId)?.Wait();
+            lock(((ICollection)Worlds).SyncRoot)
+            {
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds?.Add(mapId, parentMap);
+                _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo?.Add(mapId, parentMapInfo);
+            }
         }
 
         return true;
     }
 
-    public void Disconnect(string uri, List<uint> maps)
+    public void BattlefieldFinish(int battlefieldId)
     {
-        if (maps.Count == 0)
-        {
-            return;
-        }
-
-        // TODO: Unload arenas or battlegrounds that is hosted on this server!
-        foreach (var map in maps)
-        {
-            // DONE: Disconnecting clients
-            lock (((ICollection)_clusterServiceLocator.WorldCluster.ClienTs).SyncRoot)
-            {
-                foreach (var objCharacter in _clusterServiceLocator.WorldCluster.ClienTs)
-                {
-                    if (objCharacter.Value.Character is not null && objCharacter.Value.Character.IsInWorld && objCharacter.Value.Character.Map == map)
-                    {
-                        objCharacter.Value.Send(new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE));
-                        new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE).Dispose();
-                        objCharacter.Value.Character.Dispose();
-                        objCharacter.Value.Character = null;
-                    }
-                }
-            }
-
-            if (Worlds.ContainsKey(map))
-            {
-                try
-                {
-                    Worlds[map] = default;
-                    WorldsInfo[map] = null;
-                }
-                catch
-                {
-                    _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "Map: {0:000} has thrown an Exception!", map);
-                }
-                finally
-                {
-                    lock (((ICollection)Worlds).SyncRoot)
-                    {
-                        Worlds.Remove(map);
-                        WorldsInfo.Remove(map);
-                        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "Map: {0:000} has been disconnected!", map);
-                    }
-                }
-            }
-        }
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.INFORMATION, "[B{0:0000}] Battlefield finished", battlefieldId);
     }
 
-    public void Ping(object state)
+    public List<int> BattlefieldList(byte mapType)
     {
-        List<uint> downedServers = new();
-        Dictionary<WorldInfo, int> sentPingTo = new();
-        int myTime;
-        int serverTime;
-        int latency;
-
-        // Ping WorldServers
-        lock (((ICollection)Worlds).SyncRoot)
+        List<int> battlefieldMap = new();
+        _clusterServiceLocator.WcHandlersBattleground.BattlefielDsLock
+            .AcquireReaderLock(_clusterServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
+        foreach(var bg in _clusterServiceLocator.WcHandlersBattleground.BattlefielDs)
         {
-            if (Worlds != null && WorldsInfo != null)
+            if(((byte)bg.Value.MapType) == mapType)
             {
-                foreach (var w in Worlds)
-                {
-                    try
-                    {
-                        if (!sentPingTo.ContainsKey(WorldsInfo[w.Key]))
-                        {
-                            myTime = _clusterServiceLocator.NativeMethods.timeGetTime("");
-                            serverTime = w.Value.Ping(myTime, WorldsInfo[w.Key].Latency);
-                            latency = Math.Abs(myTime - _clusterServiceLocator.NativeMethods.timeGetTime(""));
-                            WorldsInfo[w.Key].Latency = latency;
-                            sentPingTo[WorldsInfo[w.Key]] = latency;
-                            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.NETWORK, "Map {0:000} ping: {1}ms", w.Key, latency);
-
-                            // Query CPU and Memory usage
-                            var serverInfo = w.Value.GetServerInfo();
-                            WorldsInfo[w.Key].CpuUsage = serverInfo.CpuUsage;
-                            WorldsInfo[w.Key].MemoryUsage = serverInfo.MemoryUsage;
-                        }
-                        else
-                        {
-                            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.NETWORK, "Map {0:000} ping: {1}ms", w.Key, sentPingTo[WorldsInfo[w.Key]]);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "Map {0:000} is currently down!", w.Key);
-                        downedServers.Add(w.Key);
-                    }
-                }
+                battlefieldMap?.Add(bg.Value.Id);
             }
         }
 
-        // Notification message
-        if (Worlds.Count == 0)
-        {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "No maps are currently available!");
-        }
-
-        // Drop WorldServers
-        Disconnect("NULL", downedServers);
-    }
-
-    public void ClientSend(uint id, byte[] data)
-    {
-        if (_clusterServiceLocator.WorldCluster.ClienTs.ContainsKey(id))
-        {
-            _clusterServiceLocator.WorldCluster.ClienTs[id].Send(data);
-        }
-    }
-
-    public void ClientDrop(uint id)
-    {
-        if (_clusterServiceLocator.WorldCluster.ClienTs.ContainsKey(id))
-        {
-            try
-            {
-                _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[{0:000000}] Client has dropped map {1:000}", id, _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map);
-                _clusterServiceLocator.WorldCluster.ClienTs[id].Character.IsInWorld = false;
-                _clusterServiceLocator.WorldCluster.ClienTs[id].Character.OnLogout();
-            }
-            catch (Exception ex)
-            {
-                _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[{0:000000}] Client has dropped an exception: {1}", id, ex.ToString());
-            }
-        }
-        else
-        {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[{0:000000}] Client connection has been lost.", id);
-        }
-    }
-
-    public void ClientTransfer(uint id, float posX, float posY, float posZ, float ori, uint map)
-    {
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[{0:000000}] Client has transferred from map {1:000} to map {2:000}", id, _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map, map);
-        PacketClass p = new(Opcodes.SMSG_NEW_WORLD);
-        p.AddUInt32(map);
-        p.AddSingle(posX);
-        p.AddSingle(posY);
-        p.AddSingle(posZ);
-        p.AddSingle(ori);
-        _clusterServiceLocator.WorldCluster.ClienTs[id].Send(p);
-        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map = map;
-    }
-
-    public void ClientUpdate(uint id, uint zone, byte level)
-    {
-        if (_clusterServiceLocator.WorldCluster.ClienTs[id].Character is null)
-        {
-            return;
-        }
-
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[{0:000000}] Client has an updated zone {1:000}", id, zone);
-        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Zone = zone;
-        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Level = level;
-    }
-
-    public void ClientSetChatFlag(uint id, byte flag)
-    {
-        if (_clusterServiceLocator.WorldCluster.ClienTs[id].Character is null)
-        {
-            return;
-        }
-
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.DEBUG, "[{0:000000}] Client chat flag update [0x{1:X}]", id, flag);
-        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.ChatFlag = (ChatFlag)flag;
-    }
-
-    public byte[] ClientGetCryptKey(uint id)
-    {
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.DEBUG, "[{0:000000}] Requested client crypt key", id);
-        return _clusterServiceLocator.WorldCluster.ClienTs[id].Client.PacketEncryption.Hash;
+        _clusterServiceLocator.WcHandlersBattleground.BattlefielDsLock.ReleaseReaderLock();
+        return battlefieldMap;
     }
 
     public void Broadcast(byte[] data)
     {
-        byte[] b;
-        _clusterServiceLocator.WorldCluster.CharacteRsLock.AcquireReaderLock(_clusterServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
-        foreach (var objCharacter in _clusterServiceLocator.WorldCluster.CharacteRs)
+        if(data is null)
         {
-            if (objCharacter.Value.IsInWorld && objCharacter.Value.Client is not null)
+            throw new ArgumentNullException(nameof(data));
+        }
+
+        byte[] b;
+        _clusterServiceLocator.WorldCluster.CharacteRsLock?.AcquireReaderLock(
+        _clusterServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
+        foreach(var objCharacter in _clusterServiceLocator.WorldCluster.CharacteRs)
+        {
+            if(objCharacter.Value.IsInWorld && (objCharacter.Value.Client is not null))
             {
                 b = (byte[])data.Clone();
-                objCharacter.Value.Client.Send(data);
+                objCharacter.Value.Client?.Send(data);
             }
         }
 
-        _clusterServiceLocator.WorldCluster.CharacteRsLock.ReleaseReaderLock();
+        _clusterServiceLocator.WorldCluster.CharacteRsLock?.ReleaseReaderLock();
     }
 
     public void BroadcastGroup(long groupId, byte[] data)
     {
+        if(data is null)
         {
-            var withBlock = _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId];
-            for (byte i = 0, loopTo = (byte)(withBlock.Members.Length - 1); i <= loopTo; i++)
-            {
-                withBlock.Members[i]?.Client.Send((byte[])data.Clone());
-            }
+            throw new ArgumentNullException(nameof(data));
         }
-    }
-
-    public void BroadcastRaid(long groupId, byte[] data)
-    {
+        var withBlock = _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId];
+        for(byte i = 0, loopTo = (byte)((withBlock.Members?.Length) - 1); i <= loopTo; i++)
         {
-            var withBlock = _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId];
-            for (byte i = 0, loopTo = (byte)(withBlock.Members.Length - 1); i <= loopTo; i++)
-            {
-                if (withBlock.Members[i] is not null && withBlock.Members[i].Client is not null)
-                {
-                    withBlock.Members[i].Client.Send((byte[])data.Clone());
-                }
-            }
+            withBlock.Members[i]?.Client.Send((byte[])data.Clone());
         }
     }
 
@@ -301,141 +163,253 @@ public class WorldServerClass : ICluster
         // TODO: Not implement yet
     }
 
-    public bool InstanceCheck(ClientClass client, uint mapId)
+    public void BroadcastRaid(long groupId, byte[] data)
     {
-        if (!_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(mapId))
+        if(data is null)
         {
-            // We don't create new continents
-            if (_clusterServiceLocator.Functions.IsContinentMap((int)mapId))
+            throw new ArgumentNullException(nameof(data));
+        }
+        var withBlock = _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId];
+        for(byte i = 0, loopTo = (byte)(withBlock.Members.Length - 1); i <= loopTo; i++)
+        {
+            if((withBlock.Members[i]?.Client) is not null)
             {
-                _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "[{0:000000}] Requested Instance Map [{1}] is a continent", client.Index, mapId);
-                client.Send(new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE));
-                new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE).Dispose();
-                client.Character.IsInWorld = false;
-                return false;
+                withBlock.Members?[i].Client?.Send((byte[])data.Clone());
             }
+        }
+    }
 
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[{0:000000}] Requesting Instance Map [{1}]", client.Index, mapId);
-            IWorld parentMap = default;
-            WorldInfo parentMapInfo = null;
+    public void ClientDrop(uint id)
+    {
+        if(_clusterServiceLocator.WorldCluster.ClienTs.TryGetValue(id, out var value))
+        {
+            try
+            {
+                _clusterServiceLocator.WorldCluster.Log
+                    .WriteLine(
+                        LogType.INFORMATION,
+                        "[{0:000000}] Client has dropped map {1:000}",
+                        id,
+                        value.Character.Map);
+                _clusterServiceLocator.WorldCluster.ClienTs[id].Character.IsInWorld = false;
+                _clusterServiceLocator.WorldCluster.ClienTs?[id].Character.OnLogout();
+            } catch(Exception ex)
+            {
+                _clusterServiceLocator.WorldCluster.Log
+                    .WriteLine(
+                        LogType.INFORMATION,
+                        "[{0:000000}] Client has dropped an exception: {1}",
+                        id,
+                        ex.ToString());
+            }
+        } else
+        {
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "[{0:000000}] Client connection has been lost.", id);
+        }
+    }
 
-            // Check if we got parent map
-            if (_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey((uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap) && _clusterServiceLocator.WcNetwork.WorldServer.Worlds[(uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap].InstanceCanCreate((int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
-            {
-                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[(uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
-                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[(uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
-            }
-            else if (_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(0U) && _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U].InstanceCanCreate((int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
-            {
-                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U];
-                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[0U];
-            }
-            else if (_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(1U) && _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U].InstanceCanCreate((int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
-            {
-                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U];
-                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[1U];
-            }
+    public byte[] ClientGetCryptKey(uint id)
+    {
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.DEBUG, "[{0:000000}] Requested client crypt key", id);
+        return _clusterServiceLocator.WorldCluster.ClienTs?[id]?.Client.PacketEncryption.Hash;
+    }
 
-            if (parentMap is null)
-            {
-                _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "[{0:000000}] Requested Instance Map [{1}] can't be loaded", client.Index, mapId);
-                client.Send(new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE));
-                new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE).Dispose();
-                client.Character.IsInWorld = false;
-                return false;
-            }
+    public void ClientSend(uint id, byte[] data)
+    {
+        if(data is null)
+        {
+            throw new ArgumentNullException(nameof(data));
+        }
 
-            parentMap.InstanceCreateAsync(mapId)?.Wait();
+        if(_clusterServiceLocator.WorldCluster.ClienTs.TryGetValue(id, out var value))
+        {
+            value.Send(data);
+            //_clusterServiceLocator.WorldCluster.Log
+            //    .WriteLine(LogType.INFORMATION, "[CLUSTER] Sent Data [{0}]", data.Length);
+        }
+    }
 
-            lock (((ICollection)Worlds).SyncRoot)
+    public void ClientSetChatFlag(uint id, byte flag)
+    {
+        if((_clusterServiceLocator.WorldCluster.ClienTs?[id]?.Character) is null)
+        {
+            return;
+        }
+
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.DEBUG, "[{0:000000}] Client chat flag update [0x{1:X}]", id, flag);
+        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.ChatFlag = (ChatFlag)flag;
+    }
+
+    public void ClientTransfer(uint id, float posX, float posY, float posZ, float ori, uint map)
+    {
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(
+                LogType.INFORMATION,
+                "[{0:000000}] Client has transferred from map {1:000} to map {2:000}",
+                id,
+                _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map,
+                map);
+        PacketClass packet = new(Opcodes.SMSG_NEW_WORLD);
+        packet?.AddUInt32(map);
+        packet?.AddSingle(posX);
+        packet?.AddSingle(posY);
+        packet?.AddSingle(posZ);
+        packet?.AddSingle(ori);
+        _clusterServiceLocator.WorldCluster.ClienTs?[id].Send(packet);
+        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map = map;
+    }
+
+    public void ClientUpdate(uint id, uint zone, byte level)
+    {
+        if((_clusterServiceLocator.WorldCluster.ClienTs?[id].Character) is null)
+        {
+            return;
+        }
+
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.INFORMATION, "[{0:000000}] Client has an updated zone {1:000}", id, zone);
+        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Zone = zone;
+        _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Level = level;
+    }
+
+    public bool Connect(string uri, List<uint> maps, IWorld world)
+    {
+        if(string.IsNullOrEmpty(uri))
+        {
+            throw new ArgumentException($"'{nameof(uri)}' cannot be null or empty.", nameof(uri));
+        }
+
+        if(maps is null)
+        {
+            throw new ArgumentNullException(nameof(maps));
+        }
+
+        if(world is null)
+        {
+            throw new ArgumentNullException(nameof(world));
+        }
+
+        try
+        {
+            Disconnect(uri, maps);
+            WorldInfo worldServerInfo = new();
+            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "Connected Map Server: {0}", uri);
+            lock(((ICollection)Worlds).SyncRoot)
             {
-                _clusterServiceLocator.WcNetwork.WorldServer.Worlds.Add(mapId, parentMap);
-                _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo.Add(mapId, parentMapInfo);
+                foreach(var map in maps)
+                {
+                    // NOTE: Password protected remoting
+                    Worlds[map] = world;
+                    WorldsInfo[map] = worldServerInfo;
+                }
             }
-            return true;
+        } catch(Exception ex)
+        {
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.CRITICAL, "Unable to reverse connect. [{0}]", ex.ToString());
+            return false;
         }
 
         return true;
     }
 
-    public bool BattlefieldCheck(uint mapId)
+    public void Disconnect(string uri, List<uint> maps)
     {
-        // Create map
-        if (!_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(mapId))
+        if(string.IsNullOrEmpty(uri))
         {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[SERVER] Requesting battlefield map [{0}]", mapId);
-            IWorld parentMap = default;
-            WorldInfo parentMapInfo = null;
-
-            // Check if we got parent map
-            if (_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey((uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap) && _clusterServiceLocator.WcNetwork.WorldServer.Worlds[(uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap].InstanceCanCreate((int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
-            {
-                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[(uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
-                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[(uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
-            }
-            else if (_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(0U) && _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U].InstanceCanCreate((int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
-            {
-                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U];
-                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[0U];
-            }
-            else if (_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(1U) && _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U].InstanceCanCreate((int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
-            {
-                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U];
-                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[1U];
-            }
-
-            if (parentMap is null)
-            {
-                _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "[SERVER] Requested battlefield map [{0}] can't be loaded", mapId);
-                return false;
-            }
-
-            parentMap.InstanceCreateAsync(mapId).Wait();
-            lock (((ICollection)Worlds).SyncRoot)
-            {
-                _clusterServiceLocator.WcNetwork.WorldServer.Worlds.Add(mapId, parentMap);
-                _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo.Add(mapId, parentMapInfo);
-            }
-            return true;
+            throw new ArgumentException($"'{nameof(uri)}' cannot be null or empty.", nameof(uri));
         }
 
-        return true;
-    }
-
-    public List<int> BattlefieldList(byte mapType)
-    {
-        List<int> battlefieldMap = new();
-        _clusterServiceLocator.WcHandlersBattleground.BattlefielDsLock.AcquireReaderLock(_clusterServiceLocator.GlobalConstants.DEFAULT_LOCK_TIMEOUT);
-        foreach (var bg in _clusterServiceLocator.WcHandlersBattleground.BattlefielDs)
+        if(maps is null)
         {
-            if ((byte)bg.Value.MapType == mapType)
-            {
-                battlefieldMap.Add(bg.Value.Id);
-            }
+            throw new ArgumentNullException(nameof(maps));
         }
 
-        _clusterServiceLocator.WcHandlersBattleground.BattlefielDsLock.ReleaseReaderLock();
-        return battlefieldMap;
+        if(maps.Count == 0)
+        {
+            return;
+        }
+
+        // TODO: Unload arenas or battlegrounds that is hosted on this server!
+        foreach(var map in maps)
+        {
+            // DONE: Disconnecting clients
+            lock(((ICollection)_clusterServiceLocator.WorldCluster.ClienTs).SyncRoot)
+            {
+                foreach(var objCharacter in _clusterServiceLocator.WorldCluster.ClienTs)
+                {
+                    if(((objCharacter.Value.Character?.IsInWorld) == true) &&
+                        (objCharacter.Value.Character.Map == map))
+                    {
+                        objCharacter.Value?.Send(new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE));
+                        new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE).Dispose();
+                        objCharacter.Value?.Character?.Dispose();
+                        objCharacter.Value.Character = null;
+                    }
+                }
+            }
+
+            if((bool)(Worlds?.ContainsKey(map)))
+            {
+                try
+                {
+                    Worlds[map] = default;
+                    WorldsInfo[map] = null;
+                } catch
+                {
+                    _clusterServiceLocator.WorldCluster.Log
+                        .WriteLine(LogType.WARNING, "Map: {0:000} has thrown an Exception!", map);
+                } finally
+                {
+                    lock(((ICollection)Worlds).SyncRoot)
+                    {
+                        Worlds?.Remove(map);
+                        WorldsInfo?.Remove(map);
+                        _clusterServiceLocator.WorldCluster.Log
+                            .WriteLine(LogType.INFORMATION, "Map: {0:000} has been disconnected!", map);
+                    }
+                }
+            }
+        }
     }
 
-    public void BattlefieldFinish(int battlefieldId)
-    {
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.INFORMATION, "[B{0:0000}] Battlefield finished", battlefieldId);
-    }
+    public void Dispose() { throw new NotImplementedException(); }
 
     public void GroupRequestUpdate(uint id)
     {
-        if (_clusterServiceLocator.WorldCluster.ClienTs.ContainsKey(id) && _clusterServiceLocator.WorldCluster.ClienTs[id].Character is not null && _clusterServiceLocator.WorldCluster.ClienTs[id].Character.IsInWorld && _clusterServiceLocator.WorldCluster.ClienTs[id].Character.IsInGroup)
+        if(_clusterServiceLocator.WorldCluster.ClienTs.ContainsKey(id) &&
+            ((_clusterServiceLocator.WorldCluster.ClienTs[id].Character?.IsInWorld) == true) &&
+            _clusterServiceLocator.WorldCluster.ClienTs[id].Character.IsInGroup)
         {
-            _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.NETWORK, "[G{0:00000}] Group update request", _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Id);
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(
+                    LogType.NETWORK,
+                    "[G{0:00000}] Group update request",
+                    _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Id);
             try
             {
-                _clusterServiceLocator.WorldCluster.ClienTs[id].Character.GetWorld.GroupUpdate(_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Id, (byte)_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Type, _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.GetLeader().Guid, _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.GetMembers());
-                _clusterServiceLocator.WorldCluster.ClienTs[id].Character.GetWorld.GroupUpdateLoot(_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Id, (byte)_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.DungeonDifficulty, (byte)_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.LootMethod, (byte)_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.LootThreshold, _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.GetLootMaster().Guid);
-            }
-            catch
+                _clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.GetWorld
+                .GroupUpdate(
+                    _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Id,
+                    (byte)_clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Type,
+                    _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.GetLeader().Guid,
+                    _clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.Group.GetMembers());
+                _clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.GetWorld
+                .GroupUpdateLoot(
+                    _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Group.Id,
+                    (byte)(_clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.Group.DungeonDifficulty),
+                    (byte)(_clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.Group.LootMethod),
+                    (byte)(_clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.Group.LootThreshold),
+                    (ulong)(_clusterServiceLocator.WorldCluster.ClienTs[id]?.Character.Group.GetLootMaster().Guid));
+            } catch
             {
-                _clusterServiceLocator.WcNetwork.WorldServer.Disconnect("NULL", new List<uint> { _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map });
+                _clusterServiceLocator.WcNetwork.WorldServer
+                    .Disconnect(
+                        "NULL",
+                        new List<uint> { _clusterServiceLocator.WorldCluster.ClienTs[id].Character.Map });
             }
         }
     }
@@ -443,17 +417,26 @@ public class WorldServerClass : ICluster
     public void GroupSendUpdate(long groupId)
     {
         _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.NETWORK, "[G{0:00000}] Group update", groupId);
-        lock (((ICollection)Worlds).SyncRoot)
+        lock(((ICollection)Worlds).SyncRoot)
         {
-            foreach (var w in Worlds)
+            foreach(var w in Worlds)
             {
                 try
                 {
-                    w.Value.GroupUpdate(groupId, (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].Type, _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].GetLeader().Guid, _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].GetMembers());
-                }
-                catch (Exception)
+                    w.Value
+                        .GroupUpdate(
+                            groupId,
+                            (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].Type,
+                            (ulong)(_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId]?.GetLeader().Guid),
+                            _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId]?.GetMembers());
+                } catch(Exception)
                 {
-                    _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.FAILED, "[G{0:00000}] Group update failed for [M{1:000}]", groupId, w.Key);
+                    _clusterServiceLocator.WorldCluster.Log
+                        .WriteLine(
+                            LogType.FAILED,
+                            "[G{0:00000}] Group update failed for [M{1:000}]",
+                            groupId,
+                            w.Key);
                 }
             }
         }
@@ -461,20 +444,195 @@ public class WorldServerClass : ICluster
 
     public void GroupSendUpdateLoot(long groupId)
     {
-        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.NETWORK, "[G{0:00000}] Group update loot", groupId);
-        lock (((ICollection)Worlds).SyncRoot)
+        _clusterServiceLocator.WorldCluster.Log
+            .WriteLine(LogType.NETWORK, "[G{0:00000}] Group update loot", groupId);
+        lock(((ICollection)Worlds).SyncRoot)
         {
-            foreach (var w in Worlds)
+            foreach(var w in Worlds)
             {
                 try
                 {
-                    w.Value.GroupUpdateLoot(groupId, (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].DungeonDifficulty, (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].LootMethod, (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].LootThreshold, _clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].GetLootMaster().Guid);
-                }
-                catch (Exception)
+                    w.Value
+                        .GroupUpdateLoot(
+                            groupId,
+                            (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].DungeonDifficulty,
+                            (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].LootMethod,
+                            (byte)_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId].LootThreshold,
+                            (ulong)(_clusterServiceLocator.WcHandlersGroup.GrouPs[groupId]?.GetLootMaster().Guid));
+                } catch(Exception)
                 {
-                    _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.FAILED, "[G{0:00000}] Group update loot failed for [M{1:000}]", groupId, w.Key);
+                    _clusterServiceLocator.WorldCluster.Log
+                        .WriteLine(
+                            LogType.FAILED,
+                            "[G{0:00000}] Group update loot failed for [M{1:000}]",
+                            groupId,
+                            w.Key);
                 }
             }
         }
+    }
+
+    public bool InstanceCheck(ClientClass client, uint mapId)
+    {
+        if(client is null)
+        {
+            throw new ArgumentNullException(nameof(client));
+        }
+
+        if((bool)!_clusterServiceLocator.WcNetwork.WorldServer.Worlds?.ContainsKey(mapId))
+        {
+            // We don't create new continents
+            if(_clusterServiceLocator.Functions.IsContinentMap((int)mapId))
+            {
+                _clusterServiceLocator.WorldCluster.Log
+                    .WriteLine(
+                        LogType.WARNING,
+                        "[{0:000000}] Requested Instance Map [{1}] is a continent",
+                        client.Index,
+                        mapId);
+                client?.Send(new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE));
+                new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE).Dispose();
+                client.Character.IsInWorld = false;
+                return false;
+            }
+
+            _clusterServiceLocator.WorldCluster.Log
+                .WriteLine(LogType.INFORMATION, "[{0:000000}] Requesting Instance Map [{1}]", client.Index, mapId);
+            IWorld parentMap = default;
+            WorldInfo parentMapInfo = null;
+
+            // Check if we got parent map
+            if(_clusterServiceLocator.WcNetwork.WorldServer.Worlds
+                    .ContainsKey((uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap) &&
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds[
+                    (uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap].InstanceCanCreate(
+                    (int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
+            {
+                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[
+                    (uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
+                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[
+                    (uint)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].ParentMap];
+            } else if(_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(0U) &&
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U].InstanceCanCreate(
+                    (int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
+            {
+                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[0U];
+                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[0U];
+            } else if(_clusterServiceLocator.WcNetwork.WorldServer.Worlds.ContainsKey(1U) &&
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U].InstanceCanCreate(
+                    (int)_clusterServiceLocator.WsDbcDatabase.Maps[(int)mapId].Type))
+            {
+                parentMap = _clusterServiceLocator.WcNetwork.WorldServer.Worlds[1U];
+                parentMapInfo = _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo[1U];
+            }
+
+            if(parentMap is null)
+            {
+                _clusterServiceLocator.WorldCluster.Log
+                    .WriteLine(
+                        LogType.WARNING,
+                        "[{0:000000}] Requested Instance Map [{1}] can't be loaded",
+                        client.Index,
+                        mapId);
+                client?.Send(new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE));
+                new PacketClass(Opcodes.SMSG_LOGOUT_COMPLETE).Dispose();
+                client.Character.IsInWorld = false;
+                return false;
+            }
+
+            parentMap.InstanceCreateAsync(mapId)?.Wait();
+
+            lock(((ICollection)Worlds).SyncRoot)
+            {
+                _clusterServiceLocator.WcNetwork.WorldServer.Worlds?.Add(mapId, parentMap);
+                _clusterServiceLocator.WcNetwork.WorldServer.WorldsInfo?.Add(mapId, parentMapInfo);
+            }
+        }
+
+        return true;
+    }
+
+    public void Ping(object state)
+    {
+        List<uint> downedServers = new();
+        if (downedServers != null)
+        {
+            Dictionary<WorldInfo, int> sentPingTo = new();
+            if (sentPingTo != null)
+            {
+                int myTime;
+                int serverTime;
+                int latency;
+                if (Worlds != null && ((ICollection)Worlds).SyncRoot != null)
+                {
+                    // Ping WorldServers
+                    lock (((ICollection)Worlds).SyncRoot)
+                    {
+                        if ((Worlds != null) && (WorldsInfo != null))
+                        {
+                            foreach (var Worlds in Worlds)
+                            {
+                                try
+                                {
+                                    if (!sentPingTo.ContainsKey(WorldsInfo[Worlds.Key]))
+                                    {
+                                        myTime = _clusterServiceLocator.NativeMethods.timeGetTime(string.Empty);
+                                        if (Worlds.Value != null)
+                                        {
+                                            serverTime = Worlds.Value.Ping(myTime, WorldsInfo[Worlds.Key].Latency);
+                                            latency = Math.Abs(
+                                                myTime - _clusterServiceLocator.NativeMethods.timeGetTime(string.Empty));
+                                            WorldsInfo[Worlds.Key].Latency = latency;
+                                            sentPingTo[WorldsInfo[Worlds.Key]] = latency;
+                                            _clusterServiceLocator.WorldCluster.Log
+                                                .WriteLine(LogType.NETWORK, "Master Map {0:000} ping: {1}ms time: {2}ms servertime: {3}ms sentpingto: {4}", Worlds.Key, latency, myTime, serverTime, sentPingTo[WorldsInfo[Worlds.Key]]);
+
+                                            // Query CPU and Memory usage
+                                            var serverInfo = Worlds.Value.GetServerInfo();
+                                            WorldsInfo[Worlds.Key].CpuUsage = serverInfo.CpuUsage;
+                                            WorldsInfo[Worlds.Key].MemoryUsage = serverInfo.MemoryUsage;
+                                            _clusterServiceLocator.WorldCluster.Log
+                                                .WriteLine(LogType.NETWORK, "Map {0:000} Cpu: {1} Memory: {2}", Worlds.Key, serverInfo.CpuUsage, serverInfo.MemoryUsage); // These values don't seem to be very accurate..
+                                        }
+                                        else
+                                        {
+                                            _clusterServiceLocator.WorldCluster.Log
+                                                .WriteLine(LogType.WARNING, "Map {0:000} Ping Value returned Null", Worlds.Key);
+                                            return;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        _clusterServiceLocator.WorldCluster.Log
+                                            .WriteLine(LogType.NETWORK, "Node Map {0:000} sentpingto: {1}", Worlds.Key, sentPingTo[WorldsInfo[Worlds.Key]]);
+                                    }
+                                }
+                                catch (Exception)
+                                {
+                                    _clusterServiceLocator.WorldCluster.Log
+                                        .WriteLine(LogType.WARNING, "Map {0:000} is currently down!", Worlds.Key);
+                                    downedServers?.Add(Worlds.Key);
+                                }
+                            }
+                        }
+                    }
+
+                    // Notification message
+                    if (Worlds.Count == 0)
+                    {
+                        _clusterServiceLocator.WorldCluster.Log.WriteLine(LogType.WARNING, "No maps are currently available!");
+                    }
+
+                    // Drop WorldServers
+                    Disconnect("NULL", downedServers);
+                }
+            }
+        }
+    }
+
+    public void Start()
+    {
+        // Creating ping timer
+        _mTimerPing = new Timer(Ping, null, 0, 15000);
     }
 }
